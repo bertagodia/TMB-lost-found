@@ -7,6 +7,107 @@ sistema operativo de TMB. Incluye ocho objetos y seis consultas **sintéticos**,
 sin imágenes reales ni datos personales. «Dirección» se interpreta provisionalmente
 como sentido de circulación del metro.
 
+## Rama WP3: estructura para trabajar en equipo
+
+Esta rama añade las áreas de trabajo de base de datos y cliente. **PostgreSQL aún
+no está implementado**: el inventario actual sigue usando JSON. La futura app
+tampoco está implementada; su plataforma y tecnología siguen pendientes.
+
+| Equipo | Dónde trabajar | Responsabilidad |
+|---|---|---|
+| Base de datos | `lostfound/storage/` y `migrations/` | Futura conexión PostgreSQL, tablas, consultas y cambios de esquema |
+| Cliente | `client/` | Futura app, pantallas, formularios y consumo de la API |
+| Backend / integración | `lostfound/api/`, `lostfound/schemas.py` | Contrato y operaciones que utilizará la app |
+| Búsqueda e imágenes | `lostfound/search/`, `lostfound/imaging/`, `lostfound/indexing/` | Recuperación de candidatos y procesamiento de imágenes |
+
+`web/` contiene únicamente la interfaz de pruebas existente. La app accederá a
+los datos mediante la API; el equipo de cliente no necesitará credenciales de la
+base de datos. Los contratos compartidos se deben acordar entre los equipos.
+
+## Primeros pasos con Git
+
+Git guarda el historial del código. GitHub aloja la copia compartida. Una **rama**
+permite trabajar en un cambio sin modificar directamente el trabajo de los demás.
+Un **commit** guarda un conjunto de cambios localmente; **push** lo sube a GitHub.
+
+### 1. Obtener el proyecto
+
+Instala Git y abre una terminal en la carpeta donde quieras guardar el proyecto.
+Si todavía no tienes una copia, ejecuta una sola vez:
+
+```bash
+git clone https://github.com/bertagodia/TMB-lost-found.git
+cd TMB-lost-found
+git switch WP3
+```
+
+Si ya lo habías clonado, entra en su carpeta y comprueba primero tu trabajo:
+
+```bash
+git status
+git fetch origin
+git switch WP3
+git pull --ff-only
+```
+
+Si `git status` muestra cambios pendientes, guárdalos en tu rama antes de cambiar
+de rama. Si Git impide cambiar o actualizar, pide ayuda; no fuerces la operación.
+La rama `WP3` contiene la estructura de partida y puede no haberse integrado en
+`main` todavía.
+
+### 2. Crear tu rama de trabajo
+
+Desde `WP3`, crea una rama con un nombre propio y descriptivo. Por ejemplo:
+
+```bash
+git switch -c equipo-bd/ana-modelo-objetos
+```
+
+Para cliente podrías usar `equipo-cliente/ana-formulario`. No reutilices el nombre
+de rama de otra persona. Trabaja en las carpetas de tu equipo indicadas arriba.
+
+### 3. Guardar y subir tus cambios
+
+Revisa qué has modificado:
+
+```bash
+git status
+git diff
+```
+
+Añade solo los archivos de tu cambio. Por ejemplo, para documentación de cliente:
+
+```bash
+git add client/README.md
+git commit -m "Describe las pantallas de la app"
+git push -u origin HEAD
+```
+
+Sustituye el archivo y el mensaje por los de tu trabajo. Si Git pide tu identidad
+al hacer el primer commit, configura tu nombre y correo reales en esta copia:
+
+```bash
+git config user.name "Tu nombre"
+git config user.email "tu-correo@example.com"
+```
+
+Repite después el commit. Para subir cambios necesitas acceso al repositorio;
+si GitHub rechaza el acceso, contacta con la persona responsable. No compartas
+contraseñas ni tokens por archivos o mensajes.
+
+### 4. Solicitar revisión
+
+En GitHub abre una **Pull request**, que es una solicitud para revisar e integrar
+tus cambios. Mientras WP3 sea la base de trabajo, selecciona `WP3` como rama
+destino y tu rama como origen. Explica qué cambiaste y cómo lo comprobaste.
+Después de que WP3 se integre, acordad con el equipo si las nuevas ramas parten
+de `main`.
+
+No utilices `push --force`, no borres cambios para resolver conflictos y no
+modifiques una migración compartida sin coordinarte. Si aparecen conflictos,
+detente y revisadlos juntos. Subir código no comparte los datos de una base local:
+se comparten el esquema y las migraciones; cada persona conserva su entorno.
+
 ## Organización del repositorio
 
 ```text
@@ -17,6 +118,7 @@ TMB-lost-found/
 │   ├── cli.py             # Indexar, buscar, evaluar y servir
 │   ├── config.py          # Rutas y lectura de configuraciones
 │   ├── schemas.py         # Contratos de objetos, consultas y resultados
+│   ├── storage/           # Área reservada al equipo de base de datos
 │   ├── data/              # Carga de inventarios y rutas de imágenes
 │   ├── imaging/           # Preprocesamiento, calidad e interfaz de modelos
 │   ├── indexing/          # Construcción y persistencia de índices
@@ -24,6 +126,9 @@ TMB-lost-found/
 │   ├── evaluation/        # Ejecución, métricas e informes
 │   └── api/               # Servidor HTTP local
 ├── web/                   # HTML, CSS y JavaScript separados
+├── client/                # Área reservada para la futura app
+├── migrations/            # Área reservada para cambios de esquema PostgreSQL
+│   └── versions/
 ├── configs/               # Parámetros TOML de experimentos
 ├── data/
 │   ├── demo/              # Ocho objetos y seis consultas sintéticos
