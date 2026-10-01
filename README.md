@@ -4,6 +4,10 @@ Proyecto para mejorar el registro, la búsqueda y la devolución de objetos perd
 Esta es la estructura inicial de trabajo: las implementaciones temporales y los
 tests del prototipo se han retirado. Se pueden consultar en el historial de Git.
 
+En la rama `wp5` comienza el componente de búsqueda: una referencia textual en
+Python, independiente de PostgreSQL y de la app. Consulta [search/](search/README.md)
+para ejecutarla y conocer su contrato de integración.
+
 ## Dónde trabaja cada equipo
 
 ```text
