@@ -1,8 +1,0 @@
-[
-  {"id":"Q1","description":"Mochila negra cremallera roja bolsillo delantero","date":"2026-09-11","line":"L3","direction":"Zona Universitària","relevant_ids":["DEMO-001"],"scenario":"Hallazgo tres días después de la pérdida"},
-  {"id":"Q2","description":"Paraguas amarillo con mango de madera","date":"2026-09-11","line":"L3","direction":"","relevant_ids":["DEMO-003"],"scenario":"Fecha y línea de hallazgo desconocidas"},
-  {"id":"Q3","description":"Botella azul de acero","date":"2026-09-11","line":"L3","direction":"","relevant_ids":["DEMO-004"],"scenario":"Línea declarada distinta de la registrada"},
-  {"id":"Q4","description":"Gafas marrones funda verde","date":"2026-09-11","line":"L5","direction":"","relevant_ids":["DEMO-005"],"scenario":"Coincidencia directa"},
-  {"id":"Q5","description":"Violín violeta","date":"2026-09-11","line":"L3","direction":"","relevant_ids":[],"scenario":"Sin correspondencia ni vocabulario compartido"},
-  {"id":"Q6","description":"Mochila negra con bordado de un dragón","date":"2026-09-11","line":"L3","direction":"","relevant_ids":[],"scenario":"Sin correspondencia, con distractores parecidos"}
-]

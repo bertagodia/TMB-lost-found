@@ -1,16 +1,25 @@
-__pycache__/
-.pytest_cache/
-.venv/
-.cache/
-data/private/*
-!data/private/.gitkeep
-artifacts/*
-!artifacts/.gitkeep
-reports/*
-!reports/.gitkeep
-*.egg-info/
-build/
-dist/
-.ipynb_checkpoints/
+# Configuración y datos locales
 .env
 .env.*
+!.env.example
+data/
+artifacts/
+reports/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Dependencias y compilación del cliente
+node_modules/
+build/
+dist/
+.dart_tool/
+.gradle/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

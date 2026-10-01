@@ -1,2 +1,0 @@
-# Compatibilidad con el comando inicial. Dependencias centralizadas en pyproject.toml.
--e .[vision]

@@ -1,14 +1,10 @@
-# Área del equipo de cliente
+# Aplicación
 
-Aquí se desarrollará la app. Su plataforma y tecnología están pendientes de
-decisión; esta carpeta no contiene todavía una aplicación ni dependencias.
+Carpeta del equipo de cliente. Aquí se desarrollarán las pantallas, formularios,
+captura o selección de fotografías y presentación de resultados.
 
-El equipo de cliente se encargará de pantallas, formularios, captura o selección
-de fotografías, llamadas HTTP y presentación de resultados y errores.
+La plataforma y tecnología de la app están pendientes de elección. Añadid aquí
+sus instrucciones de instalación y ejecución cuando se decidan.
 
-La app hablará con el backend de `lostfound/api/`; no incluirá credenciales de
-PostgreSQL ni conexiones directas a la base de datos. Los cambios del contrato de
-la API se acordarán con el equipo de backend antes de implementarlos.
-
-`web/` es el formulario de laboratorio existente. Permite probar la búsqueda,
-pero no es la carpeta de la futura app.
+La app consumirá la API de `backend/`; no se conectará directamente a PostgreSQL.
+Acordad con backend los campos, respuestas y errores antes de implementar llamadas.
