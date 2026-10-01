@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#e30613" />
+    <meta name="description" content="Registre d'objectes perduts trobats per operaris de TMB" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>TMB Lost &amp; Found</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-mark" aria-hidden="true">TMB</div>
+        <div><p class="eyebrow">Operacions · Objectes perduts</p><h1>Nou registre</h1></div>
+        <button class="icon-button" id="pendingButton" type="button" title="Registres pendents"><span aria-hidden="true">↗</span><span class="pending-count" id="pendingCount">0</span></button>
+      </header>
+      <section class="status-strip" aria-live="polite"><span class="status-dot" id="connectionDot"></span><span id="connectionText">Comprovant connexió...</span><span class="status-divider"></span><span id="draftText">Cap esborrany actiu</span></section>
+      <nav class="stepper" aria-label="Progrés del registre" id="stepper">
+        <button class="step active" data-step="1" type="button"><span>01</span><small>Vehicle</small></button><button class="step" data-step="2" type="button"><span>02</span><small>Fotos</small></button><button class="step" data-step="3" type="button"><span>03</span><small>Detalls</small></button><button class="step" data-step="4" type="button"><span>04</span><small>Envia</small></button>
+      </nav>
+      <div class="content">
+        <section class="view active" data-view="1"><div class="view-heading"><p class="section-kicker">Pas 1 de 4</p><h2>Identifica el vehicle</h2><p class="muted">Apropa el mòbil al tag del vehicle abans de començar.</p></div>
+          <div class="nfc-panel"><div class="nfc-symbol" aria-hidden="true">⌁</div><div><strong id="nfcTitle">A punt per llegir</strong><p id="nfcMessage">La lectura NFC associarà el registre a la línia o vehicle.</p></div><button class="primary-button" id="scanNfcButton" type="button">Llegir NFC</button></div>
+          <div class="manual-card"><div><p class="section-kicker">Entorn de proves</p><strong>Vehicle introduït manualment</strong><p class="muted">Només disponible mentre no hi hagi un tag NFC configurat.</p></div><div class="manual-fields"><label>Línia<input id="manualLine" placeholder="p. ex. H12" maxlength="12" /></label><label>Vehicle<input id="manualVehicle" placeholder="p. ex. 3421" maxlength="20" /></label></div><button class="secondary-button" id="manualVehicleButton" type="button">Continuar amb aquestes dades</button></div>
+        </section>
+        <section class="view" data-view="2"><div class="view-heading"><p class="section-kicker">Pas 2 de 4</p><h2>Fotografia l’objecte</h2><p class="muted">Necessitem dues perspectives clares. Revisa cada foto abans de confirmar-la.</p></div><div class="photo-grid"><article class="photo-slot"><div class="photo-preview" id="preview0"><span>Foto 1</span></div><div class="slot-footer"><div><strong>Perspectiva principal</strong><small id="photoStatus0">Encara no capturada</small></div><button class="secondary-button photo-button" data-photo="0" type="button">Fer foto</button></div></article><article class="photo-slot"><div class="photo-preview" id="preview1"><span>Foto 2</span></div><div class="slot-footer"><div><strong>Segona perspectiva</strong><small id="photoStatus1">Encara no capturada</small></div><button class="secondary-button photo-button" data-photo="1" type="button" disabled>Fer foto</button></div></article></div><input id="photoInput" type="file" accept="image/*" capture="environment" hidden /><div class="quality-note" id="qualityNote" hidden></div></section>
+        <section class="view" data-view="3"><div class="view-heading"><p class="section-kicker">Pas 3 de 4</p><h2>Descriu l’objecte</h2><p class="muted">Les etiquetes ajuden a trobar-lo després. La descripció és opcional.</p></div><form class="details-form" id="detailsForm"><label>Color principal<select id="color" required><option value="">Selecciona un color</option></select></label><label>Tipus d’objecte<select id="objectType" required><option value="">Selecciona un tipus</option></select></label><label>Material principal<select id="material" required><option value="">Selecciona un material</option></select></label><label>Descripció <span class="optional">Opcional</span><textarea id="description" maxlength="250" rows="4" placeholder="Detalls visibles, marques o elements distintius..."></textarea><small class="character-count"><span id="descriptionCount">0</span>/250</small></label></form></section>
+        <section class="view" data-view="4"><div class="view-heading"><p class="section-kicker">Pas 4 de 4</p><h2>Revisa i envia</h2><p class="muted">El registre es conservarà al dispositiu si ara no hi ha connexió.</p></div><div class="review-layout"><div class="review-photos" id="reviewPhotos"></div><dl class="review-list" id="reviewList"></dl></div><div class="offline-callout"><span aria-hidden="true">⌁</span><div><strong>Enviament segur</strong><p>Si la xarxa cau, quedarà pendent i s’intentarà enviar més tard sense duplicar-lo.</p></div></div></section>
+      </div>
+      <footer class="action-bar"><button class="back-button" id="backButton" type="button" hidden>Enrere</button><button class="primary-button" id="nextButton" type="button" disabled>Comença amb el vehicle</button></footer>
+    </main>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script>
+  </body>
+</html>
