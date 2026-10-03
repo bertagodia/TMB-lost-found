@@ -14,7 +14,7 @@
       <header class="app-header">
         <div class="brand-mark" aria-hidden="true">TMB</div>
         <div><p class="eyebrow">Operacions · Objectes perduts</p><h1>Nou registre</h1></div>
-        <button class="icon-button" id="pendingButton" type="button" title="Registres pendents"><span aria-hidden="true">↗</span><span class="pending-count" id="pendingCount">0</span></button>
+        <button class="icon-button" id="pendingButton" type="button" title="Obrir les sol·licituds" aria-label="Obrir les sol·licituds"><span aria-hidden="true">↗</span><span class="pending-count" id="pendingCount">0</span></button>
       </header>
       <section class="status-strip" aria-live="polite"><span class="status-dot" id="connectionDot"></span><span id="connectionText">Comprovant connexió...</span><span class="status-divider"></span><span id="draftText">Cap esborrany actiu</span></section>
       <nav class="stepper" aria-label="Progrés del registre" id="stepper">
@@ -31,6 +31,12 @@
       </div>
       <footer class="action-bar"><button class="back-button" id="backButton" type="button" hidden>Enrere</button><button class="primary-button" id="nextButton" type="button" disabled>Comença amb el vehicle</button></footer>
     </main>
+    <dialog class="requests-dialog" id="requestsDialog" aria-labelledby="requestsTitle">
+      <header class="requests-header"><div><p class="section-kicker">Registres del dispositiu</p><h2 id="requestsTitle">Sol·licituds</h2></div><button class="close-button" id="closeRequestsButton" type="button" aria-label="Tancar">×</button></header>
+      <p class="requests-summary" id="requestsSummary"></p>
+      <div class="request-list" id="requestList"></div>
+      <p class="empty-requests" id="emptyRequests" hidden>Encara no hi ha sol·licituds guardades en aquest dispositiu.</p>
+    </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script>
   </body>
 </html>
