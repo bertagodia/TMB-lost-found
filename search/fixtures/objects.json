@@ -1,0 +1,5 @@
+[
+  {"id": "DEMO-001", "description": "Mochila negra con cremallera roja", "found_date": "2026-09-14", "date_quality": "confirmed", "found_line": "L3"},
+  {"id": "DEMO-002", "description": "Paraguas amarillo con mango de madera"},
+  {"id": "DEMO-003", "description": "Mochila azul con bolsillo blanco", "found_date": "2026-09-12", "date_quality": "approximate", "found_line": "L1"}
+]
