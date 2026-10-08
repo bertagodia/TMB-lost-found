@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-# TMB Lost & Found — app Android
-
-App de registre d'objectes perduts per a operaris de TMB (NFC del vehicle → 2 fotos → etiquetes → enviament a l'API, amb funcionament sense connexió).
-
-Obrir **aquesta carpeta** (`client/android`) amb Android Studio i executar `app`.
-=======
 # WP4 — Aplicació i interacció amb les persones usuàries
 
 El WP4 s’encarrega de la part de l’aplicació amb què interactuen les persones: les
@@ -48,13 +41,28 @@ Actualment, el client és una aplicació web instal·lable (PWA) i la integraci�
 l’API és provisional. Sense un backend configurat, els registres queden desats al
 navegador del dispositiu i no es comparteixen amb altres persones.
 
-## Àrea per a clients: trobar un objecte perdut
+## Pestanya «Soc usuari»: declarar un objecte perdut
 
-En una fase posterior volem afegir una part de l’aplicació adreçada a la persona que
-ha perdut un objecte. Des d’aquesta àrea, el client podrà enviar una sol·licitud de
-cerca: descriure l’objecte, seleccionar-ne el color, el tipus i el material, i
-adjuntar-hi una fotografia de referència si en té. Els camps previstos coincideixen
-amb les etiquetes utilitzades en el registre dels objectes trobats.
+La interfície ara inclou una pestanya separada per a les persones que han perdut un
+objecte. El formulari permet descriure’l (fins a 500 caràcters), indicar la línia,
+autobús o estació i la data de pèrdua, seleccionar tipus i color, afegir una foto de
+referència opcional i proporcionar nom, correu electrònic i telèfon opcional.
+
+Les declaracions s’emmagatzemen localment sota la clau
+`tmb-lost-found-citizen-reports`, separada de la cua i l’historial dels operaris.
+No s’envien a TMB ni es comparteixen amb altres dispositius. Aquesta és només una
+persistència de prototip: no s’hi han d’introduir dades personals reals fins que
+existeixi una API segura i una política de privacitat definida.
+
+La pestanya de clients és actualment un formulari de declaració local; no fa cerques
+ni mostra coincidències.
+
+## Evolució prevista: cerca i coincidències
+
+En una fase posterior, la declaració del client s’hauria d’enviar al backend perquè
+es pugui connectar amb els components de cerca del projecte i mostrar possibles
+coincidències. Cal acordar amb els equips de backend i cerca el contracte de dades,
+la manera de presentar resultats i com es gestionaran les fotografies aportades.
 
 La sol·licitud s’hauria d’enviar al backend perquè es pugui connectar amb els
 components de cerca del projecte i mostrar possibles coincidències. Aquesta àrea de
@@ -73,18 +81,11 @@ separació en fitxers manté la interfície independent de les integracions:
 - `manifest.webmanifest`: configuració per instal·lar el client com a PWA.
 
 Per executar-lo localment, des de `client/`:
->>>>>>> 9685d59 (Document WP4 interface and goals)
 
 ```bash
-./gradlew assembleDebug        # compilar
-./gradlew testDebugUnitTest    # tests unitaris
+python3 -m http.server 4173
 ```
 
-<<<<<<< HEAD
-Per defecte usa una API simulada (`lostfound.useMockApi=true` a `gradle.properties`).
-
-Documentació completa: [`docs/app-mobil/`](../../docs/app-mobil/README.md)
-=======
 Obre `http://localhost:4173`. En un mòbil, la càmera i Web NFC requereixen una
 connexió HTTPS, excepte quan s’executa a `localhost`. El vehicle manual permet provar
 el flux sense un tag NFC.
@@ -101,4 +102,3 @@ el flux sense un tag NFC.
 	borroses encara no està implementada.
 - La cua offline desa les imatges al navegador; per a ús real cal valorar una
 	persistència més adequada per a fitxers grans i la sincronització en segon pla.
->>>>>>> 9685d59 (Document WP4 interface and goals)
