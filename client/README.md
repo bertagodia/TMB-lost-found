@@ -29,8 +29,10 @@ indicar quins registres s’han enviat correctament.
 La primera part de l’aplicació està pensada per als operaris de TMB que registren
 objectes trobats al final de la jornada. El flux permet:
 
-- Identificar el vehicle amb NFC o, per a proves, introduir-ne manualment la línia i
-	l’identificador.
+- Escollir «Metro» o «Bus» abans d’iniciar el registre; la selecció es desa amb
+	el registre.
+- A «Metro», introduir l’estació; a «Bus», identificar el vehicle. En mode de
+	proves, es poden introduir manualment la línia i l’estació o el número de vehicle.
 - Fer i revisar dues fotografies de l’objecte.
 - Seleccionar el color, el tipus d’objecte i el material principal.
 - Afegir una descripció opcional de fins a 250 caràcters.
@@ -47,12 +49,17 @@ La interfície ara inclou una pestanya separada per a les persones que han perdu
 objecte. El formulari permet descriure’l (fins a 500 caràcters), indicar la línia,
 autobús o estació i la data de pèrdua, seleccionar tipus i color, afegir una foto de
 referència opcional i proporcionar nom, correu electrònic i telèfon opcional.
+Per desar la declaració, el nom i el correu electrònic són obligatoris i cal
+acceptar explícitament que TMB pugui contactar amb la persona per aquesta declaració.
+L’acceptació i la data queden desades amb el registre local.
 
 Les declaracions s’emmagatzemen localment sota la clau
 `tmb-lost-found-citizen-reports`, separada de la cua i l’historial dels operaris.
-No s’envien a TMB ni es comparteixen amb altres dispositius. Aquesta és només una
-persistència de prototip: no s’hi han d’introduir dades personals reals fins que
-existeixi una API segura i una política de privacitat definida.
+També apareixen a «Sol·licituds» juntament amb els registres TMB, identificades
+com a declaracions d’usuari i pendents d’enviament. El resum no mostra les dades
+de contacte. No s’envien a TMB ni es comparteixen amb altres dispositius. Aquesta
+és només una persistència de prototip: no s’hi han d’introduir dades personals
+reals fins que existeixi una API segura i una política de privacitat definida.
 
 La pestanya de clients és actualment un formulari de declaració local; no fa cerques
 ni mostra coincidències.

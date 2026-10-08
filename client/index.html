@@ -21,14 +21,18 @@
         <button class="audience-tab" id="citizenTab" type="button" role="tab" aria-selected="false" aria-controls="citizenPanel">Soc usuari</button>
       </nav>
       <section id="operatorPanel" role="tabpanel" aria-labelledby="staffTab">
+      <nav class="transport-tabs" role="tablist" aria-label="Tipus de transport">
+        <button class="audience-tab" id="metroTab" type="button" role="tab" aria-selected="false" aria-controls="operatorPanel">Metro</button>
+        <button class="audience-tab active" id="busTab" type="button" role="tab" aria-selected="true" aria-controls="operatorPanel">Bus</button>
+      </nav>
       <section class="status-strip" aria-live="polite"><span class="status-dot" id="connectionDot"></span><span id="connectionText">Comprovant connexió...</span><span class="status-divider"></span><span id="draftText">Cap esborrany actiu</span></section>
       <nav class="stepper" aria-label="Progrés del registre" id="stepper">
         <button class="step active" data-step="1" type="button"><span>01</span><small>Vehicle</small></button><button class="step" data-step="2" type="button"><span>02</span><small>Fotos</small></button><button class="step" data-step="3" type="button"><span>03</span><small>Detalls</small></button><button class="step" data-step="4" type="button"><span>04</span><small>Envia</small></button>
       </nav>
       <div class="content">
-        <section class="view active" data-view="1"><div class="view-heading"><p class="section-kicker">Pas 1 de 4</p><h2>Identifica el vehicle</h2><p class="muted">Apropa el mòbil al tag del vehicle abans de començar.</p></div>
+        <section class="view active" data-view="1"><div class="view-heading"><p class="section-kicker">Pas 1 de 4</p><h2 id="vehicleHeading">Identifica la línia</h2><p class="muted" id="vehicleInstructions">Apropa el mòbil al tag del vehicle abans de començar.</p></div>
           <div class="nfc-panel"><div class="nfc-symbol" aria-hidden="true">⌁</div><div><strong id="nfcTitle">A punt per llegir</strong><p id="nfcMessage">La lectura NFC associarà el registre a la línia o vehicle.</p></div><button class="primary-button" id="scanNfcButton" type="button">Llegir NFC</button></div>
-          <div class="manual-card"><div><p class="section-kicker">Entorn de proves</p><strong>Vehicle introduït manualment</strong><p class="muted">Només disponible mentre no hi hagi un tag NFC configurat.</p></div><div class="manual-fields"><label>Línia<input id="manualLine" placeholder="p. ex. H12" maxlength="12" /></label><label>Vehicle<input id="manualVehicle" placeholder="p. ex. 3421" maxlength="20" /></label></div><button class="secondary-button" id="manualVehicleButton" type="button">Continuar amb aquestes dades</button></div>
+          <div class="manual-card"><div><p class="section-kicker">Entorn de proves</p><strong id="manualEntryTitle">Vehicle introduït manualment</strong><p class="muted">Només disponible mentre no hi hagi un tag NFC configurat.</p></div><div class="manual-fields"><label>Línia<input id="manualLine" placeholder="p. ex. L5" maxlength="12" /></label><label><span id="locationFieldLabel">Vehicle</span><input id="manualVehicle" placeholder="p. ex. 3421" maxlength="100" /></label></div></div>
         </section>
         <section class="view" data-view="2"><div class="view-heading"><p class="section-kicker">Pas 2 de 4</p><h2>Fotografia l’objecte</h2><p class="muted">Necessitem dues perspectives clares. Revisa cada foto abans de confirmar-la.</p></div><div class="photo-grid"><article class="photo-slot"><div class="photo-preview" id="preview0"><span>Foto 1</span></div><div class="slot-footer"><div><strong>Perspectiva principal</strong><small id="photoStatus0">Encara no capturada</small></div><button class="secondary-button photo-button" data-photo="0" type="button">Fer foto</button></div></article><article class="photo-slot"><div class="photo-preview" id="preview1"><span>Foto 2</span></div><div class="slot-footer"><div><strong>Segona perspectiva</strong><small id="photoStatus1">Encara no capturada</small></div><button class="secondary-button photo-button" data-photo="1" type="button" disabled>Fer foto</button></div></article></div><input id="photoInput" type="file" accept="image/*" capture="environment" hidden /><div class="quality-note" id="qualityNote" hidden></div></section>
         <section class="view" data-view="3"><div class="view-heading"><p class="section-kicker">Pas 3 de 4</p><h2>Descriu l’objecte</h2><p class="muted">Les etiquetes ajuden a trobar-lo després. La descripció és opcional.</p></div><form class="details-form" id="detailsForm"><label>Color principal<select id="color" required><option value="">Selecciona un color</option></select></label><label>Tipus d’objecte<select id="objectType" required><option value="">Selecciona un tipus</option></select></label><label>Material principal<select id="material" required><option value="">Selecciona un material</option></select></label><label>Descripció <span class="optional">Opcional</span><textarea id="description" maxlength="250" rows="4" placeholder="Detalls visibles, marques o elements distintius..."></textarea><small class="character-count"><span id="descriptionCount">0</span>/250</small></label></form></section>
@@ -43,7 +47,7 @@
       <p class="empty-requests" id="emptyRequests" hidden>Encara no hi ha sol·licituds guardades en aquest dispositiu.</p>
     </dialog>
     <section class="citizen-panel" id="citizenPanel" role="tabpanel" aria-labelledby="citizenTab" hidden>
-      <div class="citizen-heading"><p class="section-kicker">Declaració de pèrdua</p><h2>Has perdut un objecte?</h2><p class="muted">Explica’ns què has perdut i on. Les dades d’aquesta declaració es desen separadament de les dels operaris TMB.</p></div>
+      <div class="citizen-heading"><p class="section-kicker">Declaració de pèrdua</p><h2>Has perdut un objecte?</h2><p class="muted">Explica’ns què has perdut i on. La declaració es desa separadament dels registres dels operaris, però la pots consultar a «Sol·licituds».</p></div>
       <form class="citizen-form" id="citizenForm">
         <label class="citizen-description">Què has perdut?<textarea id="citizenDescription" maxlength="500" rows="5" required placeholder="Descriu l’objecte i, si ho recordes, com o on el vas perdre..."></textarea><small class="character-count"><span id="citizenDescriptionCount">0</span>/500</small></label>
         <div class="citizen-fields">
@@ -59,6 +63,7 @@
           <label>Correu electrònic<input id="citizenEmail" type="email" autocomplete="email" maxlength="254" required /></label>
           <label>Telèfon <span class="optional">Opcional</span><input id="citizenPhone" type="tel" autocomplete="tel" maxlength="40" /></label>
         </div>
+        <label class="consent-check"><input id="citizenContactConsent" type="checkbox" required /><span>Accepto que TMB em pugui contactar sobre aquesta declaració amb les dades de contacte facilitades.</span></label>
         <p class="privacy-note">En aquesta versió de prova, la declaració es desa només en aquest navegador i no s’envia a TMB.</p>
         <button class="primary-button citizen-submit" type="submit">Desar declaració</button>
         <p class="citizen-confirmation" id="citizenConfirmation" role="status" aria-live="polite" hidden></p>
