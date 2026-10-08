@@ -2,8 +2,8 @@
 
 Proyecto para mejorar el registro, la búsqueda y la devolución de objetos perdidos.
 La interfaz WP4 está en `client/`. El backbone WP5 de extracción con Ollama,
-revisión y búsqueda textual está en `search/`; su conexión mediante backend
-sigue pendiente. Consulta [search/README.md](search/README.md) para probarlo por CLI
+revisión y búsqueda textual está en `search/`. Para abrir WP4 conectado a Ollama,
+ejecuta `python -m backend.server --port 8001` y visita http://127.0.0.1:8001. Consulta [search/README.md](search/README.md) para probarlo por CLI
 y conocer el mapeo previsto desde los formularios WP4.
 
 ## Dónde trabaja cada equipo
@@ -41,7 +41,7 @@ cd TMB-lost-found
 Si ya tienes una copia, no la clones otra vez: sigue la [guía de Git](docs/git.md)
 para actualizarla y crear tu rama de trabajo desde `main`.
 
-La interfaz WP4 y la CLI de búsqueda se pueden probar por separado. La API y
-PostgreSQL siguen pendientes. Cada equipo
+La interfaz WP4 usa el backend local para extracción y registro. La API de
+producción y PostgreSQL siguen pendientes. Cada equipo
 añadirá las dependencias e instrucciones de ejecución cuando implemente su parte.
 Los cambios de campos o API se acordarán entre equipos antes de integrarlos.

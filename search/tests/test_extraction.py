@@ -1,5 +1,7 @@
 import base64
+import hashlib
 import io
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -48,6 +50,47 @@ class ExtractionTests(unittest.TestCase):
         attrs.quality = 'insufficient'
         self.assertEqual(attrs.to_search_text(), '')
 
+    def test_mislabeled_jpg_reports_actual_format(self):
+        mislabeled = self.root / 'not-really-jpeg.jpg'
+        Image.new('RGB', (20, 20), 'red').save(mislabeled, format='BMP')
+        with self.assertRaisesRegex(ExtractionError, 'contenido de la imagen es BMP'):
+            _prepare_image(mislabeled)
+        genuine = self.root / 'real.jpg'
+        Image.new('RGB', (20, 20), 'red').save(genuine, format='JPEG')
+        encoded, digest = _prepare_image(genuine)
+        self.assertTrue(encoded)
+        self.assertEqual(len(digest), 64)
+
+    def test_mpo_jpg_uses_primary_frame_and_preserves_original(self):
+        photo = self.root / 'multi-picture.jpg'
+        Image.new('RGB', (1400, 700), 'red').save(
+            photo, format='MPO', save_all=True,
+            append_images=[Image.new('RGB', (1400, 700), 'blue')])
+        raw = photo.read_bytes()
+        with Image.open(photo) as original:
+            self.assertEqual(original.format, 'MPO')
+            self.assertEqual(original.n_frames, 2)
+        encoded, digest = _prepare_image(photo)
+        with Image.open(io.BytesIO(base64.b64decode(encoded))) as result:
+            self.assertEqual(result.format, 'JPEG')
+            self.assertEqual(result.size, (1024, 512))
+            self.assertEqual(result.mode, 'RGB')
+            red, green, blue = result.getpixel((100, 100))
+            self.assertGreater(red, 240)
+            self.assertLess(green, 10)
+            self.assertLess(blue, 10)
+            self.assertFalse(result.getexif())
+            self.assertEqual(getattr(result, 'n_frames', 1), 1)
+        self.assertEqual(digest, hashlib.sha256(raw).hexdigest())
+        self.assertEqual(photo.read_bytes(), raw)
+
+    def test_animated_png_still_rejected(self):
+        Image.new('RGB', (20, 20), 'red').save(
+            self.image, format='PNG', save_all=True,
+            append_images=[Image.new('RGB', (20, 20), 'blue')], duration=100)
+        with self.assertRaisesRegex(ExtractionError, 'animación'):
+            _prepare_image(self.image)
+
     def test_unavailable_and_malformed_ollama(self):
         with patch('search.extraction.build_opener') as opener:
             opener.return_value.open.side_effect = OSError('offline')
@@ -57,6 +100,21 @@ class ExtractionTests(unittest.TestCase):
             opener.return_value.open.return_value.__enter__.return_value.read.return_value = b'{}'
             with self.assertRaises(ExtractionError):
                 extract_image(self.image, model='test')
+
+    def test_transport_records_timing_and_bounded_keep_alive(self):
+        from search.extraction import request_json
+        metrics = {}
+        response = dict(done=True, message={'content': '{}'}, total_duration=3_000_000_000,
+                        load_duration=1_000_000_000, prompt_eval_duration=1_500_000_000,
+                        eval_duration=500_000_000, prompt_eval_count=100, eval_count=20)
+        with patch('search.extraction.build_opener') as opener:
+            opener.return_value.open.return_value.__enter__.return_value.read.return_value = json.dumps(response).encode()
+            self.assertEqual(request_json(['image'], schema={}, prompt='test', keep_alive='15m', metrics=metrics), '{}')
+            request = opener.return_value.open.call_args.args[0]
+            self.assertEqual(json.loads(request.data)['keep_alive'], '15m')
+        self.assertEqual(metrics, dict(ollama_seconds=3, model_load_seconds=1,
+                                      prompt_eval_seconds=1.5, generation_seconds=.5,
+                                      prompt_eval_count=100, eval_count=20))
 
     def test_batch_resume_and_model_change(self):
         inventory = Inventory(self.root / 'inventory.json')

@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 PROMPT_VERSION = 'object-attributes-es-v2'
-PREPROCESS_VERSION = 'rgb-exif-1024-jpeg90-v1'
+PREPROCESS_VERSION = 'rgb-exif-mpo-primary-1024-jpeg90-v2'
 MAX_BYTES = 20 * 1024 * 1024
 MAX_PIXELS = 25_000_000
 Text = Annotated[str, Field(min_length=1, max_length=160)]
@@ -90,7 +90,16 @@ Usa quality=usable si el objeto principal se distingue, aunque falten atributos.
 """
 
 
-def _prepare_image(path: Path) -> tuple[str, str]:
+def _prepare_image(path: Path, *, crop=None) -> tuple[str, str]:
+    """Optional normalized (left, top, right, bottom) crop after EXIF orientation.
+
+    Cropping is an explicit benchmark experiment, not automatic detection.
+    The digest always identifies the unchanged source file.
+    """
+    if crop is not None:
+        if (len(crop) != 4 or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in crop)
+                or not 0 <= crop[0] < crop[2] <= 1 or not 0 <= crop[1] < crop[3] <= 1):
+            raise ValueError('crop debe ser [left, top, right, bottom] normalizado entre 0 y 1.')
     try:
         with path.open('rb') as handle:
             raw = handle.read(MAX_BYTES + 1)
@@ -99,14 +108,29 @@ def _prepare_image(path: Path) -> tuple[str, str]:
         with warnings.catch_warnings():
             warnings.simplefilter('error', Image.DecompressionBombWarning)
             with Image.open(io.BytesIO(raw)) as original:
-                if original.format not in {'JPEG', 'PNG', 'WEBP'}:
-                    raise ExtractionError('Utiliza una imagen JPEG, PNG o WebP.')
-                if getattr(original, 'n_frames', 1) != 1:
+                if original.format not in {'JPEG', 'MPO', 'PNG', 'WEBP'}:
+                    raise ExtractionError(
+                        f'El contenido de la imagen es {original.format or "desconocido"}, '
+                        'aunque el archivo pueda terminar en .jpg. '
+                        'Exporta o convierte la imagen a JPEG, PNG o WebP; '
+                        'cambiar la extensión no convierte el formato.')
+                # Multi-picture JPEGs may contain auxiliary images. Use only
+                # their primary frame; this is not multi-view extraction.
+                if original.format == 'MPO':
+                    original.seek(0)
+                elif getattr(original, 'n_frames', 1) != 1:
                     raise ExtractionError('Utiliza una imagen estática, no una animación.')
                 if original.width * original.height > MAX_PIXELS:
                     raise ExtractionError('La imagen supera los 25 megapíxeles.')
                 original.load()
                 oriented = ImageOps.exif_transpose(original).convert('RGBA')
+                if crop is not None:
+                    width, height = oriented.size
+                    box = (int(crop[0] * width), int(crop[1] * height),
+                           int(crop[2] * width), int(crop[3] * height))
+                    if box[0] == box[2] or box[1] == box[3]:
+                        raise ValueError('El recorte debe contener al menos un píxel.')
+                    oriented = oriented.crop(box)
                 background = Image.new('RGBA', oriented.size, 'white')
                 background.alpha_composite(oriented)
                 prepared = background.convert('RGB')
@@ -135,15 +159,37 @@ def extract_image(image_path: str | Path, *, model: str = DEFAULT_MODEL,
     started = time.monotonic()
     encoded, digest = _prepare_image(Path(image_path))
     schema = ImageAttributes.model_json_schema()
+    content = request_json([encoded], schema=schema, prompt=PROMPT, model=model, timeout=timeout)
+    try:
+        attributes = ImageAttributes.model_validate_json(content)
+    except ValidationError as exc:
+        raise ExtractionError('El modelo devolvió una respuesta que no cumple el esquema.') from exc
+    return ExtractionResult(
+        source=source, image_sha256=digest, model=model,
+        created_at=datetime.now(timezone.utc).isoformat(),
+        elapsed_seconds=round(time.monotonic() - started, 3),
+        attributes=attributes, draft_search_text=attributes.to_search_text(),
+    )
+
+
+def request_json(images, *, schema, prompt, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT,
+                 keep_alive=None, metrics=None):
+    """Shared local-only transport; callers validate their own task schema."""
+    if not model.strip() or 'cloud' in model.casefold() or '/' in model:
+        raise ValueError('Indica un modelo local con visión.')
+    if not 0 < timeout <= 600:
+        raise ValueError('timeout debe estar entre 0 y 600 segundos')
     payload = {
         'model': model, 'stream': False, 'format': schema,
         'options': {'temperature': 0},
         'messages': [
-            {'role': 'system', 'content': PROMPT + '\n' + json.dumps(schema)},
+            {'role': 'system', 'content': prompt + '\n' + json.dumps(schema)},
             {'role': 'user', 'content': 'Extrae los atributos del objeto de la foto.',
-             'images': [encoded]},
+             'images': images},
         ],
     }
+    if keep_alive is not None:
+        payload['keep_alive'] = keep_alive
     request = Request('http://127.0.0.1:11434/api/chat',
                       data=json.dumps(payload).encode('utf-8'),
                       headers={'Content-Type': 'application/json'}, method='POST')
@@ -156,7 +202,18 @@ def extract_image(image_path: str | Path, *, model: str = DEFAULT_MODEL,
         result = json.loads(body)
         if result.get('done') is not True or result.get('done_reason') == 'length':
             raise ExtractionError('El modelo no completó la extracción.')
-        attributes = ImageAttributes.model_validate_json(result['message']['content'])
+        if metrics is not None:
+            for source, target in [('total_duration', 'ollama_seconds'),
+                                   ('load_duration', 'model_load_seconds'),
+                                   ('prompt_eval_duration', 'prompt_eval_seconds'),
+                                   ('eval_duration', 'generation_seconds')]:
+                value = result.get(source)
+                if type(value) in (int, float) and value >= 0:
+                    metrics[target] = round(value / 1_000_000_000, 3)
+            for key in ('prompt_eval_count', 'eval_count'):
+                if type(result.get(key)) is int:
+                    metrics[key] = result[key]
+        return result['message']['content']
     except HTTPError as exc:
         raise ExtractionError(f'Ollama devolvió HTTP {exc.code}; comprueba que el modelo '
                               'esté instalado y admita imágenes y JSON estructurado.') from exc
@@ -165,12 +222,6 @@ def extract_image(image_path: str | Path, *, model: str = DEFAULT_MODEL,
                               'Comprueba ollama serve y el tiempo de espera.') from exc
     except (ValueError, KeyError, TypeError, AttributeError, ValidationError) as exc:
         raise ExtractionError('El modelo devolvió una respuesta que no cumple el esquema.') from exc
-    return ExtractionResult(
-        source=source, image_sha256=digest, model=model,
-        created_at=datetime.now(timezone.utc).isoformat(),
-        elapsed_seconds=round(time.monotonic() - started, 3),
-        attributes=attributes, draft_search_text=attributes.to_search_text(),
-    )
 
 
 def main() -> None:

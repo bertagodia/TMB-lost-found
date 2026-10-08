@@ -7,8 +7,9 @@ buscador **BM25** compara ese texto con la descripción de una reclamación.
 
 Este cambio incluye la biblioteca, persistencia JSON local, CLI y evaluación.
 La interfaz es la de [WP4](../client/README.md); no se incluye una segunda UI de
-pruebas. **La conexión HTTP entre WP4 y este componente todavía está pendiente.**
-No hay servidor API ni persistencia PostgreSQL implementados en esta entrega.
+pruebas. La conexión local WP4 → Ollama se inicia con `python -m backend.server --port 8001`.
+El adaptador `form_extraction.py` genera los campos del formulario y permite revisión
+antes de guardar. PostgreSQL y la búsqueda desde la pantalla ciudadana siguen pendientes.
 
 ## Instalación
 
@@ -45,7 +46,9 @@ python -m search.extraction /ruta/objeto.jpg --output artifacts/search/extraccio
 ```
 
 El modelo predeterminado es `qwen3-vl:2b-instruct` y la espera es de 300 segundos.
-Admite JPEG, PNG y WebP estático, hasta 20 MiB y 25 megapíxeles. El resultado incluye
+Admite JPEG (incluidos archivos MPO, usando solo su imagen principal), PNG y WebP
+estático, hasta 20 MiB y 25 megapíxeles. Conserva el archivo original; las imágenes
+auxiliares de un MPO no se analizan como vistas adicionales. El resultado incluye
 atributos, borrador, hash del original, versiones del prompt/preprocesamiento,
 modelo y duración. Siempre comienza con `review_status: pending`.
 
@@ -142,11 +145,17 @@ result = SearchEngine(objects).search(SearchQuery(description="mochila gris"))
 usarse como sustituto de concurrencia, autorización o persistencia PostgreSQL.
 El buscador usa una instantánea: hay que reconstruirlo cuando cambia el inventario.
 
-Siguiente integración: acordar los contratos HTTP de alta, extracción, revisión y
-búsqueda; conectarlos desde las pantallas WP4; añadir estado de procesamiento y
-manejo de errores/reintentos. La extracción puede tardar decenas de segundos, por
-lo que el envío offline no debería depender de mantener una petición de inferencia
-abierta. No se incluyen esos endpoints ni cambios en `client/` en este PR.
+La integración local de operarios está disponible: `POST /api/extract` devuelve
+campos revisables y `POST /lost-found` guarda el registro confirmado. La extracción
+se realiza antes del envío y sus errores permiten continuar manualmente. Consulta
+[backend/README.md](../backend/README.md) para arrancar la UI conectada y conocer
+el contrato. La búsqueda del ciudadano y la API de producción siguen pendientes.
+
+El formulario usa ahora reconocimiento libre del objeto antes de mapear categorías,
+con nombre conservado para `Altres`, colores múltiples y avisos de incertidumbre.
+Esto es distinto del extractor genérico de la CLI. Para comparar el prompt anterior,
+el actual, modelos locales y recortes sin modificar la UI, consulta el
+[benchmark de precisión visual](benchmarks/README.md).
 
 ## Implementación futura: segunda fotografía
 

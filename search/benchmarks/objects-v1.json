@@ -1,0 +1,513 @@
+{
+  "label_status": "Provisional assistant visual reference labels; not independently human-validated. Bottle identity confirmed by user. 20 objects / 21 photos.",
+  "cases": [
+    {
+      "id": "OBJ-001",
+      "image": "images/OBJ-001.jpg",
+      "image_sha256": "9dfd8af8812500c7edfa16b7c21b24d2d9df6396fade1f83979dc02ae7ab869e",
+      "crop": [
+        0.005937499999999998,
+        0.1559375,
+        1,
+        0.9034375
+      ],
+      "expected": {
+        "objectType": "Motxilla",
+        "required_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "name_pattern": "backpack|rucksack|mochila|motxilla",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-004",
+      "image": "images/OBJ-004.jpg",
+      "image_sha256": "d04359030ec37c2a98f328f1e912594653dfe810d61bb67fb08a15711ab5b98a",
+      "crop": [
+        0.005937499999999998,
+        0.027812500000000004,
+        1,
+        0.9846875
+      ],
+      "expected": {
+        "objectType": "Motxilla",
+        "required_colors": [
+          "Vermell",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Vermell",
+          "Negre",
+          "Groc"
+        ],
+        "name_pattern": "backpack|rucksack|mochila|motxilla",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-006",
+      "image": "images/OBJ-006.jpg",
+      "image_sha256": "e33b46c2b3d0d4b48f7e75bfafa06c669964b6ff9d6347dcdbb7c34d73ecd5c2",
+      "crop": [
+        0.1465625,
+        0,
+        0.9034375,
+        0.91515625
+      ],
+      "expected": {
+        "objectType": "Motxilla",
+        "required_colors": [
+          "Gris"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "name_pattern": "backpack|rucksack|mochila|motxilla",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-007",
+      "image": "images/OBJ-007.jpg",
+      "image_sha256": "36219d9df29799090759c8c5f2801d5063c241833f7f717b3977a758d4455d2b",
+      "crop": [
+        0.012187500000000004,
+        0.026250000000000002,
+        0.95421875,
+        0.758125
+      ],
+      "expected": {
+        "objectType": "Bossa",
+        "required_colors": [
+          "Marró"
+        ],
+        "allowed_colors": [
+          "Marró",
+          "Gris"
+        ],
+        "name_pattern": "bag|bolso|bossa",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-009",
+      "image": "images/OBJ-009.jpg",
+      "image_sha256": "ddbfdee758714e1f73a116f9e38adf7eb739835f5d6076d6f4e7ef312b1fd444",
+      "crop": [
+        0.104375,
+        0,
+        0.90578125,
+        0.9471875000000001
+      ],
+      "expected": {
+        "objectType": "Bossa",
+        "required_colors": [
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Negre",
+          "Groc",
+          "Gris"
+        ],
+        "name_pattern": "bag|bolso|bossa",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-011",
+      "image": "images/OBJ-011.jpg",
+      "image_sha256": "c481dd38b47f8a76d7a54bf3b6dbe19ea6342f687f322e8e1a7e693b312ea887",
+      "crop": [
+        0.0371875,
+        0.0825,
+        0.964375,
+        0.9175
+      ],
+      "expected": {
+        "objectType": "Cartera",
+        "required_colors": [
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Negre",
+          "Blanc"
+        ],
+        "name_pattern": "wallet|cartera",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-015",
+      "image": "images/OBJ-015.jpg",
+      "image_sha256": "c68cccbc6f3e31e761d2386c817bc06c5876fa748aa258a05d433a92dd1298f6",
+      "crop": [
+        0.0528125,
+        0.060625,
+        0.74875,
+        0.95734375
+      ],
+      "expected": {
+        "objectType": "Cartera",
+        "required_colors": [
+          "Gris"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Blanc",
+          "Negre"
+        ],
+        "name_pattern": "wallet|cartera",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-017",
+      "image": "images/OBJ-017.jpg",
+      "image_sha256": "fc35419f89806c2d2bf7b8197c34937b2fb3aec170147ce55bbece9742c5b122",
+      "crop": [
+        0.066875,
+        0.37,
+        0.93234375,
+        0.71515625
+      ],
+      "expected": {
+        "objectType": "Ulleres",
+        "required_colors": [
+          "Vermell"
+        ],
+        "allowed_colors": [
+          "Vermell",
+          "Transparent",
+          "Gris"
+        ],
+        "name_pattern": "glasses|gafas|ulleres",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-023",
+      "image": "images/OBJ-023.jpg",
+      "image_sha256": "f1d03fc742b61de0be763775e477250fb2dbbfde25d90b08bcd832f78bc91824",
+      "crop": [
+        0,
+        0.1715625,
+        1,
+        1
+      ],
+      "expected": {
+        "objectType": "Ulleres",
+        "required_colors": [
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Negre"
+        ],
+        "name_pattern": "glasses|gafas|ulleres",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-024",
+      "image": "images/OBJ-024.jpg",
+      "image_sha256": "e30d185da3a3b69529e1b10edd1a2ecc8bfe53cd04f6414c1ed5edb90bb00e2c",
+      "crop": [
+        0.28093749999999995,
+        0.09968750000000001,
+        0.7675000000000001,
+        1
+      ],
+      "expected": {
+        "objectType": "Mòbil",
+        "required_colors": [
+          "Blau"
+        ],
+        "allowed_colors": [
+          "Blau",
+          "Negre",
+          "Gris"
+        ],
+        "name_pattern": "phone|teléfono|telèfon|móvil|mòbil",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-027",
+      "image": "images/OBJ-027.jpg",
+      "image_sha256": "4107dac687587557d9d1ecc9aeaa76877be2dd1a608a0a3d6310d12cc9dd2467",
+      "crop": [
+        0.034062499999999996,
+        0.3075,
+        0.88234375,
+        0.7471875
+      ],
+      "expected": {
+        "objectType": "Mòbil",
+        "required_colors": [
+          "Blau"
+        ],
+        "allowed_colors": [
+          "Blau",
+          "Verd",
+          "Negre"
+        ],
+        "name_pattern": "phone|teléfono|telèfon|móvil|mòbil",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-028",
+      "image": "images/OBJ-028.jpg",
+      "image_sha256": "5548f8364b351a4ce301bf275d88aa0f1b1f8023405ea850a8ab349dbdb09746",
+      "crop": [
+        0.1653125,
+        0,
+        0.7479687500000001,
+        1
+      ],
+      "expected": {
+        "objectType": "Altres",
+        "required_colors": [
+          "Negre",
+          "Blanc"
+        ],
+        "allowed_colors": [
+          "Negre",
+          "Blanc",
+          "Gris"
+        ],
+        "name_pattern": "watch|reloj|rellotge",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-032",
+      "image": "images/OBJ-032.jpg",
+      "image_sha256": "9191f23cb7c16f44c900c141021fe20a0868bbd2b76666662f8657675f45f6fa",
+      "crop": [
+        0.0012500000000000011,
+        0.005937499999999998,
+        0.6776562500000001,
+        0.8596875
+      ],
+      "expected": {
+        "objectType": "Altres",
+        "required_colors": [
+          "Blanc",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Blanc",
+          "Negre"
+        ],
+        "name_pattern": "watch|reloj|rellotge",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-034",
+      "image": "images/OBJ-034.jpg",
+      "image_sha256": "07acf7ef493146129fd3eefe970e62afb7015ce72a7db99042072bffa405fd42",
+      "crop": [
+        0.0871875,
+        0.0809375,
+        1,
+        0.72296875
+      ],
+      "expected": {
+        "objectType": "Claus",
+        "required_colors": [
+          "Gris"
+        ],
+        "allowed_colors": [
+          "Gris"
+        ],
+        "name_pattern": "key|llave|clau",
+        "material": "Metall"
+      }
+    },
+    {
+      "id": "OBJ-036",
+      "image": "images/OBJ-036.jpg",
+      "image_sha256": "444b181a89a776a7e0a436700ea33ce01aafea459b306d79148ac9b6ccc0ad71",
+      "crop": [
+        0.1653125,
+        0.2246875,
+        0.82453125,
+        0.645625
+      ],
+      "expected": {
+        "objectType": "Claus",
+        "required_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "name_pattern": "key|llave|clau",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-042",
+      "image": "images/OBJ-042.jpg",
+      "image_sha256": "9b7e97f77458bb134078fadb084aae6f1e6691f52f044afb864155719e653293",
+      "crop": [
+        0.0871875,
+        0,
+        0.93234375,
+        0.80578125
+      ],
+      "expected": {
+        "objectType": "Auriculars",
+        "required_colors": [
+          "Gris"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Blanc",
+          "Marró"
+        ],
+        "name_pattern": "headphone|auricular",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-043",
+      "image": "images/OBJ-043.jpg",
+      "image_sha256": "2013b977b0e64adc0dc88e958d337670fd49c39871234c9b8f7cc62bd08eb202",
+      "crop": [
+        0,
+        0.0371875,
+        0.9846875,
+        0.94875
+      ],
+      "expected": {
+        "objectType": "Auriculars",
+        "required_colors": [
+          "Blanc"
+        ],
+        "allowed_colors": [
+          "Blanc",
+          "Marró",
+          "Gris"
+        ],
+        "name_pattern": "headphone|auricular",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-044",
+      "image": "images/OBJ-044.jpg",
+      "image_sha256": "bcf12c63e486ea007187e3f2667646a7ca0152a93059cfde84cd35926a0a68d3",
+      "crop": [
+        0.12156249999999999,
+        0.1434375,
+        0.97609375,
+        0.851875
+      ],
+      "expected": {
+        "objectType": "Altres",
+        "required_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Negre",
+          "Blanc"
+        ],
+        "name_pattern": "power bank|battery|batería|bateria",
+        "material": null
+      }
+    },
+    {
+      "id": "OBJ-049",
+      "image": "images/OBJ-049.jpg",
+      "image_sha256": "94bfc4d220505ab605baede0c4060ca4b57d6e83d58d935f06cd7bac55a5f807",
+      "crop": [
+        0.10125,
+        0.0403125,
+        0.92453125,
+        0.98078125
+      ],
+      "expected": {
+        "objectType": "Altres",
+        "required_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Negre"
+        ],
+        "name_pattern": "laptop|notebook|portátil|portàtil",
+        "material": null
+      }
+    },
+    {
+      "id": "IMG_1621",
+      "object_id": "USER-BOTTLE",
+      "source": "personal",
+      "image": "IMG_1621.jpg",
+      "image_sha256": "58ba7419ccc2260718aaefc7fabfd7e2406ba2d1f5f23880557312bfa2c543af",
+      "crop": [
+        0.26,
+        0.2,
+        0.63,
+        0.73
+      ],
+      "expected": {
+        "objectType": "Ampolla",
+        "required_colors": [
+          "Gris",
+          "Taronja",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Taronja",
+          "Negre"
+        ],
+        "name_pattern": "bottle|flask|thermos|botella|ampolla",
+        "material": "Metall"
+      }
+    },
+    {
+      "id": "IMG_1622",
+      "object_id": "USER-BOTTLE",
+      "source": "personal",
+      "image": "IMG_1622.jpg",
+      "image_sha256": "a08ab9e6ea5ffdc468a464895acc0f1b4f39b798125126463f6ca461ce03844d",
+      "crop": [
+        0.37,
+        0.25,
+        0.73,
+        0.8
+      ],
+      "expected": {
+        "objectType": "Ampolla",
+        "required_colors": [
+          "Gris",
+          "Taronja",
+          "Negre"
+        ],
+        "allowed_colors": [
+          "Gris",
+          "Taronja",
+          "Negre"
+        ],
+        "name_pattern": "bottle|flask|thermos|botella|ampolla",
+        "material": "Metall"
+      }
+    }
+  ]
+}
