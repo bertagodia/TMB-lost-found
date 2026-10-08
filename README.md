@@ -31,6 +31,9 @@ de acuerdo.
 
 ## Empezar
 
+Para instalar y arrancar el servidor en el ordenador de cada persona (Windows,
+macOS o Linux), sigue la [guía SETUP.md](SETUP.md).
+
 Instala Git, abre una terminal y ejecuta:
 
 ```bash
