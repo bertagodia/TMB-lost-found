@@ -149,8 +149,10 @@ export TEST_DATABASE_URL="$DATABASE_URL"
 python -m unittest discover -s database/tests -v
 ```
 
-The Compose development owner has the required privilege. CI runs the same tests
-against a PostgreSQL 17 service. Tests cover migration replay/tamper/rollback,
+The Compose development owner has the required privilege. The optional
+`database/ci/github-actions.yml` template runs the same tests against a PostgreSQL
+17 service. To activate it, a maintainer with workflow permissions can copy it to
+`.github/workflows/database.yml`; the current publishing token cannot install workflows. Tests cover migration replay/tamper/rollback,
 concurrent registration/reviews, provenance, immutable history, retries, rejection,
 archival, manual fallback and repeatable demo data.
 
