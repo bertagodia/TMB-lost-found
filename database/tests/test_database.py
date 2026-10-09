@@ -14,6 +14,7 @@ from psycopg.conninfo import make_conninfo
 from database.migrate import migrate, MIGRATIONS
 from database.repository import Repository, ConflictError
 from database.seed import seed
+from search import FoundObject, SearchEngine, SearchQuery
 
 FIELDS = dict(colors=['Gris','Taronja','Negre'], objectType='Ampolla', material='Metall', description='')
 
@@ -160,6 +161,16 @@ class DatabaseTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=4) as pool:
             reviews = list(pool.map(lambda n:self.repo.add_review('legacy-001',{**FIELDS,'description':str(n)}),range(8)))
         self.assertEqual(sorted(r['revision'] for r in reviews),list(range(2,10)))
+
+    def test_search_snapshot_works_with_current_wp5_engine(self):
+        self.register()
+        def engine():
+            return SearchEngine(FoundObject(**{key:value for key,value in row.items()
+                                               if key not in {'review_id','revision'}})
+                                for row in self.repo.searchable_objects())
+        self.assertEqual(engine().search(SearchQuery('Ampolla Taronja')).candidates[0].object_id,'legacy-001')
+        self.repo.add_review('legacy-001',FIELDS,status='rejected')
+        self.assertEqual(engine().search(SearchQuery('Ampolla Taronja')).candidates,())
 
     def test_demo_repeat_preserves_subsequent_reviews(self):
         seed(self.dsn)
