@@ -62,14 +62,13 @@ cierra y vuelve a abrir la terminal si aún no reconoce su comando.
 
 ## 2. Descargar esta versión
 
-La versión integrada está en la rama `prototype-integration`. Estos comandos de
-GitHub requieren que esa rama esté publicada; si no existe todavía, pide al
-responsable que la publique. La versión antigua de `main` no es equivalente.
+La versión integrada está en la rama `main`. Sigue estos pasos para descargar
+la versión actual del prototipo.
 
 Para una copia nueva, ejecuta:
 
 ```text
-git clone --branch prototype-integration https://github.com/bertagodia/TMB-lost-found.git
+git clone --branch main https://github.com/bertagodia/TMB-lost-found.git
 cd TMB-lost-found
 ```
 
@@ -79,11 +78,11 @@ de rama; no los borres. Con la copia limpia:
 
 ```text
 git fetch origin
-git switch prototype-integration
-git pull --ff-only origin prototype-integration
+git switch main
+git pull --ff-only origin main
 ```
 
-Para reproducir exactamente la entrega 0.1, una vez publicado también su tag:
+Para reproducir exactamente la entrega 0.1, usa su tag publicado:
 
 ```text
 git fetch origin --tags
@@ -253,8 +252,8 @@ Para actualizar la rama de desarrollo, para Python, comprueba `git status --shor
 y conserva cualquier cambio propio antes de continuar:
 
 ```text
-git switch prototype-integration
-git pull --ff-only origin prototype-integration
+git switch main
+git pull --ff-only origin main
 ```
 
 Repite la instalación de `backend/requirements.txt` del paso 3 (no hace falta
@@ -284,7 +283,7 @@ No la publiques en Internet. Cada ordenador usa `127.0.0.1` para referirse a sí
 | Imagen no compatible | Usa JPEG, PNG o WebP estático, hasta 20 MiB y 25 megapíxeles; HEIC no está admitido. |
 | Búsqueda vacía | Comprueba que el objeto está registrado con revisión aprobada, usa una palabra de su descripción y elimina filtros de tipo/color. |
 | Error tras reiniciar Python | Recarga la página para obtener el nuevo token local. |
-| GitHub no encuentra `prototype-integration` o `v0.1` | La rama o el tag aún no se han publicado; pide al responsable que los suba. |
+| GitHub no encuentra el repositorio o `v0.1` | Comprueba la URL del repositorio, tu acceso y ejecuta `git fetch origin --tags`. |
 
 Si necesitas ayuda, comparte el comando ejecutado, el error y tu sistema operativo.
 Oculta contraseñas y datos de contacto antes de copiar mensajes o capturas.

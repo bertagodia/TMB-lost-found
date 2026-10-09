@@ -37,7 +37,7 @@ Para instalar y arrancar el prototipo completo, sigue [SETUP.md](SETUP.md).
 Instala Git, abre una terminal y ejecuta:
 
 ```bash
-git clone --branch prototype-integration https://github.com/bertagodia/TMB-lost-found.git
+git clone --branch main https://github.com/bertagodia/TMB-lost-found.git
 cd TMB-lost-found
 ```
 
