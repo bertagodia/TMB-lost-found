@@ -1,4 +1,7 @@
-# Functional local prototype
+# Functional local prototype — version 0.1
+
+First installation? Follow [SETUP.md](SETUP.md) for step-by-step Windows and
+macOS/Linux instructions, expected results and troubleshooting.
 
 The prototype connects the existing WP4 interface, Qwen image extraction, PostgreSQL
 and WP5 BM25 search. Open **http://127.0.0.1:8001** after starting the server below.
@@ -145,6 +148,9 @@ responses and model inputs. Search snapshots are rebuilt for every query; no
 separate index synchronization service is needed for this small prototype.
 
 ## Limits for the next iteration
+
+See [recorded testing feedback and deferred improvements](docs/PROTOTYPE_IMPROVEMENTS.md)
+for the next iteration's line priority, date format and citizen search refinements.
 
 - Localhost only; there are no accounts, operator/citizen authorization or public
   deployment controls. The tabs are not access-control boundaries.
