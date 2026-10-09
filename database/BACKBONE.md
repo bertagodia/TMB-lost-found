@@ -1,5 +1,11 @@
 # Backbone de datos v0.1 — contrato propuesto para PostgreSQL
 
+**Actualización de implementación (WP3):** las cuatro tablas de inventario, las
+migraciones, el repositorio Python y la vista de búsqueda ya están implementados
+en esta rama. Consulta [README.md](README.md) para ejecutarlos y conocer las
+decisiones concretas de esta primera entrega. Este documento conserva el diseño
+y el alcance futuro; la UI y el buscador todavía no usan PostgreSQL.
+
 **Objetivo:** dar al equipo de base de datos un primer esquema implementable para
 registrar objetos, conservar extracciones y revisiones, y proporcionar datos al
 buscador. Este documento es una propuesta de contrato basada en el código actual;
@@ -372,9 +378,11 @@ traducción para acordar este backbone.
 ## 8. Qué existe hoy y qué queda por implementar
 
 Hoy el backend guarda JSON locales y la CLI tiene su propio inventario JSON.
-Ninguna de estas tablas, la vista ni el adaptador PostgreSQL están implementados.
-El formulario ciudadano tampoco envía declaraciones al servidor. Este documento
-es el punto de partida para construirlos, no una descripción de servicios ya activos.
+La primera implementación de inventario está en `database/migrations/001_inventory.sql`
+y `database/repository.py`, con pruebas reales de PostgreSQL. Aún falta conectar
+este repositorio con el almacenamiento de archivos, el backend HTTP y BM25.
+Las tablas ciudadanas y su endpoint continúan pendientes; no se ha cambiado el
+formulario ciudadano ni la persistencia local actual.
 
 Código de referencia: [backend/server.py](https://github.com/bertagodia/TMB-lost-found/blob/182dafe/backend/server.py),
 [client/app.js](https://github.com/bertagodia/TMB-lost-found/blob/182dafe/client/app.js), [campos compartidos](https://github.com/bertagodia/TMB-lost-found/blob/182dafe/client/form-options.json),
