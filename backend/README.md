@@ -1,10 +1,14 @@
 # Backend local de WP4 + extracción
 
+**Modo integrado:** [PROTOTYPE.md](../PROTOTYPE.md) documenta PostgreSQL, inventario,
+revisiones, búsqueda ciudadana y declaraciones. Define `DATABASE_URL` para activarlo.
+Sin esa variable se conserva el modo JSON descrito a continuación.
+
 Sirve la interfaz WP4 y conecta su formulario de operarios con Ollama. Desde la
 raíz del repositorio, con Python 3.11+ y Ollama activo:
 
 ```bash
-python -m pip install -r search/requirements.txt
+python -m pip install -r backend/requirements.txt
 ollama pull qwen3-vl:2b-instruct
 python -m backend.server --port 8001
 ```

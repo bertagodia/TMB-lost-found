@@ -1,4 +1,5 @@
 """Small PostgreSQL repository; file validation/storage stays in the HTTP backend."""
+from contextlib import nullcontext
 import hashlib
 import json
 from uuid import uuid4
@@ -97,7 +98,7 @@ class Repository:
                 raise ConflictError('Extraction missing or already completed')
             return row
 
-    def register_object(self, object_id, *, photo_ids, details, reviewed, extraction_id=None, **metadata):
+    def register_object(self, object_id, *, photo_ids, details, reviewed, extraction_id=None, connection=None, **metadata):
         """Atomically adopt staged photos and append the first approved review.
 
         Same normalized submission is idempotent even after later reviews/status changes.
@@ -113,7 +114,7 @@ class Repository:
         # Omitted and explicit null optional metadata have the same normalized meaning.
         metadata = {key: metadata.get(key) for key in sorted(METADATA)}
         metadata['date_quality'] = metadata['date_quality'] or 'unknown'
-        with self.connect() as conn:
+        with (nullcontext(connection) if connection is not None else self.connect()) as conn:
             # Consistent lock order avoids photo-adoption deadlocks across objects.
             photos = conn.execute('SELECT * FROM tmb.photos WHERE id = ANY(%s) ORDER BY id FOR UPDATE',
                                   (photo_ids,)).fetchall()

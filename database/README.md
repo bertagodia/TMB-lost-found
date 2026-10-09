@@ -4,9 +4,10 @@ WP3 implements the inventory portion of [BACKBONE.md](BACKBONE.md): four tables,
 versioned migrations, a Python repository, synthetic demo data and a reviewed-only
 search view. PostgreSQL 17 and Python 3.11+ are the supported development setup.
 
-**The existing UI and search engine still use their current local storage.** This
-PR supplies their database foundation; HTTP/file-storage and BM25 integration are
-the next step after merge. No change of model or Catalan-label translation is needed.
+**The integrated prototype now connects the UI and search engine through the backend.**
+See [PROTOTYPE.md](../PROTOTYPE.md) for the complete flow. Migration 002 adds HTTP
+submission receipts, citizen reports/contacts and private reference-photo ownership.
+The original inventory repository remains independently usable.
 
 ## Start a local database
 

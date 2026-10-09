@@ -1,0 +1,2 @@
+-r ../search/requirements.txt
+-r ../database/requirements.txt

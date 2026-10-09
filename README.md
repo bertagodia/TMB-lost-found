@@ -1,5 +1,7 @@
 # TMB — Objetos perdidos
 
+**Prototipo integrado:** consulta [PROTOTYPE.md](PROTOTYPE.md) para funcionalidades, arranque y pruebas de UI + PostgreSQL + búsqueda.
+
 Proyecto para mejorar el registro, la búsqueda y la devolución de objetos perdidos.
 La interfaz WP4 está en `client/`. El backbone WP5 de extracción con Ollama,
 revisión y búsqueda textual está en `search/`. Para abrir WP4 conectado a Ollama,
@@ -31,8 +33,8 @@ de acuerdo.
 
 ## Empezar
 
-Para instalar y arrancar el servidor en el ordenador de cada persona (Windows,
-macOS o Linux), sigue la [guía SETUP.md](SETUP.md).
+Para instalar y arrancar el prototipo completo, sigue [PROTOTYPE.md](PROTOTYPE.md).
+[SETUP.md](SETUP.md) conserva también las instrucciones del modo de extracción/JSON.
 
 Instala Git, abre una terminal y ejecuta:
 
@@ -44,7 +46,7 @@ cd TMB-lost-found
 Si ya tienes una copia, no la clones otra vez: sigue la [guía de Git](docs/git.md)
 para actualizarla y crear tu rama de trabajo desde `main`.
 
-La interfaz WP4 usa el backend local para extracción y registro. La API de
-producción y PostgreSQL siguen pendientes. Cada equipo
+La interfaz WP4 usa el backend local para extracción y registro. La persistencia PostgreSQL y la búsqueda ya están conectadas en el prototipo local. La API de
+producción sigue pendiente. Cada equipo
 añadirá las dependencias e instrucciones de ejecución cuando implemente su parte.
 Los cambios de campos o API se acordarán entre equipos antes de integrarlos.

@@ -1,5 +1,8 @@
 # Configuración local para cada persona
 
+**Prototipo completo:** para UI + PostgreSQL + búsqueda sigue [PROTOTYPE.md](PROTOTYPE.md).
+Las instrucciones de abajo describen también el modo anterior de extracción/JSON sin `DATABASE_URL`.
+
 Esta guía permite ejecutar el prototipo completo en tu propio ordenador: interfaz
 WP4, servidor Python y extracción de imágenes con Ollama. Cada persona necesita
 su propia instalación, copia del repositorio y modelo descargado.
@@ -93,7 +96,7 @@ la política de scripts de PowerShell. Python documenta este uso en su
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r search/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
 ```
 
 **macOS / Linux**
@@ -101,7 +104,7 @@ py -3 -m venv .venv
 ```bash
 python3 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -r search/requirements.txt
+./.venv/bin/python -m pip install -r backend/requirements.txt
 ```
 
 Las dependencias de extracción son Pillow y Pydantic, con las versiones indicadas

@@ -6,6 +6,8 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
+import os
+import psycopg
 from pathlib import Path
 import secrets
 import tempfile
@@ -138,7 +140,21 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(403, {'error': 'Accés local únicament.'})
         path = urlsplit(self.path).path
         if path == '/api/health':
-            return self.respond(200, {'model': self.server.app.model, 'status': 'ready'})
+            try:
+                if hasattr(self.server.app,'repo'):
+                    with self.server.app.repo.connect() as conn:
+                        conn.execute('SELECT 1')
+                return self.respond(200, {'model': self.server.app.model, 'status': 'ready',
+                    'storage':'postgres' if hasattr(self.server.app,'repo') else 'json'})
+            except psycopg.Error:
+                return self.respond(503, {'error':'PostgreSQL no està disponible.'})
+        if path.startswith('/api/photos/') and hasattr(self.server.app,'photo_bytes'):
+            try:
+                return self.respond(200,self.server.app.photo_bytes(path.removeprefix('/api/photos/')),'image/jpeg')
+            except (OSError,ValueError):
+                return self.respond(404,{'error':'Fotografia no disponible.'})
+            except psycopg.Error:
+                return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
                  '/form-options.json': 'form-options.json'}
@@ -167,13 +183,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.server.app.extract(payload))
             if path == '/lost-found':
                 return self.respond(200, self.server.app.submit(payload))
+            operations = {'/api/inventory':'inventory','/api/review':'review',
+                '/api/status':'status','/api/search':'search','/api/lost-reports':'lost_report'}
+            if path in operations and hasattr(self.server.app,operations[path]):
+                return self.respond(200,getattr(self.server.app,operations[path])(payload))
             self.respond(404, {'error': 'No trobat.'})
+        except psycopg.IntegrityError:
+            self.respond(400, {'error':'Les dades no compleixen el contracte. Revisa els camps i torna-ho a provar.'})
+        except psycopg.Error:
+            self.respond(503, {'error':'PostgreSQL no està disponible. Les dades no s’han confirmat.'})
         except BlockingIOError as exc:
             self.respond(409, {'error': str(exc)})
         except FileExistsError as exc:
             self.respond(409, {'error': str(exc)})
         except (ValueError, KeyError, TypeError, OSError, RuntimeError) as exc:
-            self.respond(400, {'error': str(exc)})
+            from database.repository import ConflictError
+            self.respond(409 if isinstance(exc,ConflictError) else 400, {'error': str(exc)})
 
     def log_message(self, format, *args):
         pass
@@ -187,7 +212,13 @@ def main():
     args = parser.parse_args()
     try:
         with ThreadingHTTPServer(('127.0.0.1', args.port), Handler) as server:
-            server.app = Application(args.data_dir, args.model)
+            if os.environ.get('DATABASE_URL'):
+                from database.migrate import migrate
+                from .postgres import PostgresApplication
+                migrate(os.environ['DATABASE_URL'])
+                server.app = PostgresApplication(args.data_dir,os.environ['DATABASE_URL'],args.model)
+            else:
+                server.app = Application(args.data_dir, args.model)
             server.token = secrets.token_hex(32)
             print(f'WP4 + Ollama: http://127.0.0.1:{server.server_port}', flush=True)
             server.serve_forever()
