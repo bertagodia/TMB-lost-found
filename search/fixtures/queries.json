@@ -1,0 +1,5 @@
+[
+  {"id": "bag", "query": {"description": "mochila negra cremallera roja", "lost_date": "2026-09-11", "line": "L3"}, "relevant_ids": ["DEMO-001"], "category": "mochila", "description_quality": "detailed", "modality": "text"},
+  {"id": "umbrella", "query": {"description": "paraguas amarillo madera"}, "relevant_ids": ["DEMO-002"], "category": "paraguas", "description_quality": "detailed", "modality": "text"},
+  {"id": "no-match", "query": {"description": "telefono plateado"}, "relevant_ids": [], "category": "telefono", "description_quality": "brief", "modality": "text"}
+]

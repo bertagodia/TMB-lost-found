@@ -1,8 +1,10 @@
 # TMB — Objetos perdidos
 
 Proyecto para mejorar el registro, la búsqueda y la devolución de objetos perdidos.
-Esta es la estructura inicial de trabajo: las implementaciones temporales y los
-tests del prototipo se han retirado. Se pueden consultar en el historial de Git.
+La interfaz WP4 está en `client/`. El backbone WP5 de extracción con Ollama,
+revisión y búsqueda textual está en `search/`. Para abrir WP4 conectado a Ollama,
+ejecuta `python -m backend.server --port 8001` y visita http://127.0.0.1:8001. Consulta [search/README.md](search/README.md) para probarlo por CLI
+y conocer el mapeo previsto desde los formularios WP4.
 
 ## Dónde trabaja cada equipo
 
@@ -24,9 +26,13 @@ TMB-lost-found/
 
 La app se comunicará con la API; no accederá directamente a PostgreSQL.
 PostgreSQL sustituirá a SharePoint según la decisión comunicada por el equipo.
-La tecnología de la app y el contrato de la API están pendientes de acuerdo.
+La interfaz WP4 usa HTML, CSS y JavaScript. El contrato de la API está pendiente
+de acuerdo.
 
 ## Empezar
+
+Para instalar y arrancar el servidor en el ordenador de cada persona (Windows,
+macOS o Linux), sigue la [guía SETUP.md](SETUP.md).
 
 Instala Git, abre una terminal y ejecuta:
 
@@ -38,6 +44,7 @@ cd TMB-lost-found
 Si ya tienes una copia, no la clones otra vez: sigue la [guía de Git](docs/git.md)
 para actualizarla y crear tu rama de trabajo desde `main`.
 
-Todavía no hay una app, base de datos o servidor listos para arrancar. Cada equipo
+La interfaz WP4 usa el backend local para extracción y registro. La API de
+producción y PostgreSQL siguen pendientes. Cada equipo
 añadirá las dependencias e instrucciones de ejecución cuando implemente su parte.
 Los cambios de campos o API se acordarán entre equipos antes de integrarlos.
