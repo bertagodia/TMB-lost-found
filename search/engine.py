@@ -46,8 +46,8 @@ class SearchEngine:
 
     def search(self, query: SearchQuery, *, policy='soft', window_days=2,
                limit=5, min_text_score=0.0) -> SearchResult:
-        if policy not in ('soft', 'strict', 'ranked'):
-            raise ValueError('policy debe ser soft o strict')
+        if policy not in ('soft', 'strict', 'ranked', 'ranked_strict'):
+            raise ValueError('Unknown search policy')
         if type(window_days) is not int or not 0 <= window_days <= 365:
             raise ValueError('window_days debe ser un entero entre 0 y 365')
         if type(limit) is not int or not 1 <= limit <= 100:
@@ -60,6 +60,15 @@ class SearchEngine:
             delta = (obj.found_date - query.lost_date).days if obj.found_date and query.lost_date else None
             line_match = (normalize(obj.found_line) == normalize(query.line)
                           if obj.found_line and query.line else None)
+            if policy == 'ranked_strict':
+                wanted = {normalize(c) for c in query.colors}
+                top_colors = {normalize(c) for c in obj.colors[:3]}
+                if ((query.line and line_match is not True)
+                    or (query.transport and obj.found_transport != query.transport)
+                    or (query.lost_date and (delta is None or abs(delta) > 7))
+                    or (wanted and (not obj.color_order_known or not wanted.issubset(top_colors)))):
+                    excluded.append(obj.id)
+                    continue
             if policy == 'strict' and (line_match is False or (delta is not None and abs(delta) > window_days)):
                 excluded.append(obj.id)
                 continue
@@ -80,7 +89,7 @@ class SearchEngine:
                 metadata_score += 0.25
                 signals.append('Sentido coincidente')
             rank_score = score
-            if policy == 'ranked':
+            if policy in ('ranked', 'ranked_strict'):
                 # Bound lexical relevance so metadata can meaningfully rerank matches.
                 # No metadata can create a candidate without positive text overlap.
                 metadata_score = 0.0

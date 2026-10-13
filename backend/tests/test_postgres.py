@@ -44,7 +44,7 @@ class PostgresTests(unittest.TestCase):
             conn.execute('TRUNCATE tmb.finding_reviews,tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
         data=io.BytesIO();Image.new('RGB',(24,24),'orange').save(data,format='JPEG')
         self.photo=dict(data='data:image/jpeg;base64,'+base64.b64encode(data.getvalue()).decode())
-        self.fields=dict(colors=['Taronja','Negre'],objectType='Ampolla',material='Metall',description='Orange bottle')
+        self.fields=dict(colorOrderKnown=True,colors=['Taronja','Negre'],objectType='Ampolla',material='Metall',description='Orange bottle')
         self.record=dict(id='test-record',photos=[self.photo,self.photo],details=self.fields,reviewed=True,
                          vehicle=dict(line='H12',vehicle='001',source='manual'),capturedAt='2026-10-09T10:00:00Z')
         self.draft=dict(object_name='bottle',visible_features=['Orange body'],colors=['orange','black'],material='metal',quality='usable',sensitive_content=False)
@@ -98,7 +98,7 @@ class PostgresTests(unittest.TestCase):
         self.assertEqual(len(self.app.repo.get_object('test-record')['reviews']),1)
 
     def test_report_contact_and_reference_photo_are_private_and_retryable(self):
-        self.app.submit(self.record)
+        self.app.submit({**self.record,'finding':{'date':'2026-10-08'}})
         report=dict(id='report-1',description='orange bottle',filters={'colors':['Taronja']},
                     incident={'location':'Station','lossDate':'2026-10-08'},contact={'name':'Test','email':'test@example.invalid'},referencePhoto=self.photo)
         first=self.app.lost_report(report)
@@ -126,13 +126,17 @@ class PostgresTests(unittest.TestCase):
         self.assertTrue(self.app.submit({**self.record,'finding':finding,'details':details})['duplicate'])
         item=self.app.inventory({})['objects'][0]
         self.assertEqual((item['found_line'],item['found_date'],item['color_order_known']),('H12','2026-10-08',True))
-        # Matching and nonmatching selected colors do not remove the object.
+        # Every selected color must occur in the first three ranked colors.
         query=dict(description='bottle',transport='bus',line='H12',lostDate='2026-10-08',filters={'colors':['Taronja','Blau']})
+        self.assertEqual(self.app.search(query)['candidates'],[])
+        query['filters']['colors']=['Taronja','Negre']
         result=self.app.search(query)['candidates'][0]
         self.assertEqual(result['colors'],['Taronja','Negre'])
         self.assertTrue(result['colorOrderKnown'])
         self.app.review(dict(id='test-record',revision=1,reviewed=True,details={**details,'colors':['Negre','Taronja']},
                              finding={**finding,'line':'H14','date':'2026-10-09'}))
+        self.assertEqual(self.app.search(query)['candidates'],[])
+        query['line']='H14'
         updated=self.app.search(query)['candidates'][0]
         self.assertEqual((updated['foundLine'],updated['foundDate'],updated['colors'][0]),('H14','2026-10-09','Negre'))
         self.assertLess(updated['score'],result['score'])
@@ -144,7 +148,8 @@ class PostgresTests(unittest.TestCase):
             self.assertEqual(conn.execute('SELECT count(*) AS n FROM tmb.finding_reviews').fetchone()['n'],2)
 
     def test_registration_context_is_not_finding_and_invalid_corrections_roll_back(self):
-        self.app.submit(self.record)
+        legacy={k:v for k,v in self.fields.items() if k!='colorOrderKnown'}
+        self.app.submit({**self.record,'details':legacy})
         item=self.app.inventory({})['objects'][0]
         self.assertIsNone(item['found_line']);self.assertIsNone(item['found_date'])
         self.assertFalse(item['color_order_known'])

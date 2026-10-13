@@ -207,8 +207,9 @@ Abre **http://127.0.0.1:8001**. No abras `client/index.html` directamente ni use
 
 La búsqueda actual compara palabras, no el significado general: no traduce entre
 idiomas. Los textos extraídos son ingleses y las etiquetas del formulario siguen
-siendo provisionales. El tipo seleccionado restringe resultados; los colores, la línea y la fecha ayudan
-a ordenarlos. Revisa el orden de colores y completa en el primer paso la línea y fecha
+siendo provisionales. Los filtros son estrictos: misma línea, fecha de hallazgo dentro de ±7 días de
+la pérdida y todos los colores seleccionados entre los tres principales del objeto.
+Los campos vacíos no filtran. Revisa el orden de colores y completa en el primer paso la línea y fecha
 reales del hallazgo, si las conoces. Consulta [los nuevos campos](docs/RANKED_SEARCH.md).
 La foto del ciudadano se guarda como referencia, pero no participa en la búsqueda.
 Consulta [las funcionalidades y límites](PROTOTYPE.md) y las

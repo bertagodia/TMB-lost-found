@@ -245,7 +245,7 @@ class PostgresApplication(Application):
                 (object_type,object_type)).fetchall()
         objects = [FoundObject(**{k:row[k] for k in ('id','description','found_date','date_quality','found_line','found_direction','colors','color_order_known','found_transport')}) for row in rows]
         query_text = ' '.join([description,object_type or ''])
-        matches = SearchEngine(objects).search(SearchQuery(query_text[:2000],lost_date=lost_date,line=line,transport=mode,colors=tuple(colors),date_approximate=approximate),policy='ranked',limit=20)
+        matches = SearchEngine(objects).search(SearchQuery(query_text[:2000],lost_date=lost_date,line=line,transport=mode,colors=tuple(colors),date_approximate=approximate),policy='ranked_strict',limit=20)
         lookup = {row['id']:row for row in rows}
         results = []
         for candidate in matches.candidates:

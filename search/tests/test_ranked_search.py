@@ -42,3 +42,25 @@ class RankedSearchTests(unittest.TestCase):
         exact=self.rank(objects,lost_date=date(2026,10,8))[0]
         approx=self.rank(objects,lost_date=date(2026,10,8),date_approximate=True)[0]
         self.assertLess(approx.metadata_score,exact.metadata_score)
+
+    def test_strict_line_dates_and_top_three_are_mandatory(self):
+        from dataclasses import replace
+        base=FoundObject('valid','bottle',found_date=date(2025,10,8),date_quality='confirmed',
+            found_line='H12',found_transport='bus',colors=('Negre','Taronja','Blanc','Blau'),color_order_known=True)
+        objects=[base,replace(base,id='minus7',found_date=date(2025,10,1)),
+                 replace(base,id='plus7',found_date=date(2025,10,15)),
+                 replace(base,id='minus8',found_date=date(2025,9,30)),
+                 replace(base,id='plus8',found_date=date(2025,10,16)),
+                 replace(base,id='line',found_line='H14'),
+                 replace(base,id='unknown-line',found_line=None),
+                 replace(base,id='unknown-date',found_date=None,date_quality='unknown'),
+                 replace(base,id='unknown-order',color_order_known=False),
+                 replace(base,id='fourth-color',colors=('Negre','Blanc','Blau','Taronja')),
+                 replace(base,id='missing-color',colors=('Negre','Blanc')),
+                 replace(base,id='mode',found_transport='metro')]
+        query=SearchQuery('bottle',line='H12',transport='bus',lost_date=date(2025,10,8),colors=('Taronja','Blanc'))
+        for approximate in (False,True):
+            result=SearchEngine(objects).search(replace(query,date_approximate=approximate),policy='ranked_strict',limit=20)
+            self.assertEqual({r.object_id for r in result.candidates},{'valid','minus7','plus7'})
+            self.assertEqual(len(result.excluded_ids),9)
+        self.assertEqual(len(SearchEngine(objects).search(SearchQuery('bottle'),policy='ranked_strict',limit=20).candidates),len(objects))

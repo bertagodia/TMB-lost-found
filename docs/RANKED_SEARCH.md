@@ -19,7 +19,9 @@ Feature branch: `feature/ranked-colors-transit-search` (based on main).
    metadata, with stale-revision checks and an append-only metadata audit.
 
 Existing records have unknown color order until reviewed. They remain searchable;
-no existing color list is retroactively treated as coverage-ranked. Use the server
+no existing color list is retroactively treated as coverage-ranked. Under strict
+filters, unknown finding metadata or unreviewed color order cannot satisfy the
+corresponding requirement. Use the server
 inventory's correction form to add finding metadata and confirm color order.
 
 ## Citizen search
@@ -29,13 +31,17 @@ Choose an optional transport, line and loss date. Dates are entered/displayed as
 rejected. Exact and approximate dates are distinguished. Vehicle identifiers are
 only requested from operators. Station text remains supplementary report data.
 
-Colors are supporting ranking evidence, not a requirement that every selected
-color be present. The UI displays candidates' ordered colors, finding details and
+Every selected color must appear among the first three reviewed, coverage-ranked
+colors. A selected line must match exactly (including transport), and a supplied
+loss date requires a finding date within an inclusive ±7-day window. Unknown
+required metadata excludes a record. Blank filters do not restrict candidates;
+approximate dates still use the same ±7-day window. The UI displays candidates' ordered colors, finding details and
 matching signals. Reference photos remain supporting material and are not searched.
 
 ## Ranking contract
 
-The HTTP search uses the engine's `ranked` policy:
+The HTTP search uses the engine's `ranked_strict` policy. Apply the hard constraints
+above first, then rank the surviving candidates:
 
 - Start with BM25 over reviewed text. A candidate needs positive lexical overlap.
   Selected type remains an optional exact filter and contributes to query text;
@@ -47,13 +53,12 @@ The HTTP search uses the engine's `ranked` policy:
   Halve date influence when either date is approximate. Unknown dates contribute 0.
 - Colors: +0.45 times matched color weight / total object color weight. Known color
   order uses `1, 1/2, 1/3, ...`; older unordered lists use equal weights. Selecting
-  additional unmatched colors does not exclude or reduce a candidate's score.
+  any color absent from the first three ranked colors excludes the candidate.
 - Sort by combined score, then metadata score, then ID for deterministic ties.
 
 Weights are provisional, explainable prototype choices, not learned probabilities
-or a measured accuracy improvement. A date mismatch lowers rank rather than hiding
-potential matches. The existing `soft` and `strict` CLI policies remain available
-with their previous behavior. This is still lexical retrieval, not semantic search.
+or a measured accuracy improvement. Dates outside the inclusive ±7-day window exclude candidates. The existing `soft` and `strict` CLI policies remain available
+with their previous behavior; `ranked` remains available for soft-ranking experiments. This is still lexical retrieval, not semantic search.
 
 ## API and database
 

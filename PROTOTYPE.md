@@ -30,10 +30,11 @@ object type/colors. There is no general multilingual/semantic translation layer.
 
 Location and loss date are saved with a declaration. Free-text location is not
 silently interpreted as a confirmed line, and registration time/vehicle are not
-invented finding metadata. Unknown finding metadata does not exclude candidates.
-Selected colors boost matching candidates according to their reviewed coverage order;
-they no longer exclude objects missing one selected color. Finding metadata can be
-entered and corrected explicitly, and affects ranking beyond text-score ties.
+invented finding metadata. Unknown finding metadata excludes candidates when that criterion is supplied.
+Strict search requires every selected color in the first three ranked colors,
+an exact selected line/transport match and a finding date within ±7 days of a
+supplied loss date. Missing required metadata excludes a record. Blank criteria
+do not filter. Surviving candidates are ranked by text and supporting evidence.
 A result is a candidate, not verified ownership or an authorized return.
 
 ## Quick test on the running instance
@@ -122,7 +123,7 @@ node --check client/app.js
 ```
 
 The PostgreSQL tests create their own uniquely named databases and remove them
-at the end. The 59 Python tests passed, covering actual PostgreSQL, file storage,
+at the end. The 60 Python tests passed, covering actual PostgreSQL, file storage,
 retry concurrency, provenance, cache reuse, contact separation and search updates.
 Backend DB tests are explicitly skipped if `TEST_DATABASE_URL` is missing.
 

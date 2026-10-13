@@ -51,6 +51,8 @@ if(!photo)throw new Error('Set TEST_PHOTO_1 to an object image.');
   await page.locator('#citizenTab').click();await page.locator('#citizenDescription').fill('Ranking browser bottle');
   await page.locator('#citizenTransport').selectOption('bus');await page.locator('#citizenLine').fill('H12');await page.locator('#citizenLossDate').fill('03/04/2026');
   await page.locator('#citizenColor input[value="Negre"]').check();await page.locator('#citizenColor input[value="Blau"]').check();
+  const blocked=page.waitForResponse(r=>r.url().endsWith('/api/search'));await page.locator('#searchButton').click();assert.deepEqual((await(await blocked).json()).candidates,[]);
+  await page.locator('#citizenColor input[value="Blau"]').uncheck();
   const sr=page.waitForResponse(r=>r.url().endsWith('/api/search'));await page.locator('#searchButton').click();const result=await(await sr).json();const item=result.candidates.find(i=>i.id===id);
   assert(item);assert.deepEqual(item.colors,['Negre','Taronja']);assert.equal(item.foundDate,'2026-04-03');assert.equal(item.foundLine,'H12');assert(item.colorOrderKnown);
   await page.waitForFunction(id=>document.getElementById('searchResults').textContent.includes(id),id);

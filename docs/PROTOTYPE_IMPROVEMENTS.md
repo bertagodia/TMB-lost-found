@@ -4,6 +4,8 @@ Recorded: 9 October 2026. Updated: 13 October 2026.
 
 Line/date ranking, dd/mm/yyyy dates, softer ranked colors and removal of the citizen
 vehicle-number suggestion are now implemented on `feature/ranked-colors-transit-search`.
+A subsequent request makes line/date and top-three colors hard search filters;
+this supersedes the original softer-filter proposal below.
 See [the implementation notes](RANKED_SEARCH.md). The original feedback below is
 retained as context; object-type simplification and image-based search remain deferred.
 
