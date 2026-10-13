@@ -31,6 +31,9 @@ objectes trobats al final de la jornada. El flux permet:
 
 - Escollir «Metro» o «Bus» abans d’iniciar el registre; la selecció es desa amb
 	el registre.
+- Seleccionar si la foto s’ha fet en una estació o en una cotxera; l’aplicació
+	assigna automàticament l’estació central de destinació segons les taules del
+	full de correspondències.
 - A «Metro», introduir l’estació; a «Bus», identificar el vehicle. En mode de
 	proves, es poden introduir manualment la línia i l’estació o el número de vehicle.
 - Fer i revisar dues fotografies de l’objecte.
