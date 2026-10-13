@@ -21,3 +21,7 @@
 .finding-fields legend { font-weight: 700; }
 .match-signals { font-size: .85rem; color: #40574a; }
 select { max-width: 100%; min-width: 0; }
+#extractionProgress { margin: .75rem 0 1rem; }
+#extractionProgressLabel { display: block; font-size: .9rem; margin-bottom: .4rem; }
+#extractionBar { display: block; width: 100%; height: 14px; accent-color: #e30613; }
+#extractionBar[hidden] { display: none; }

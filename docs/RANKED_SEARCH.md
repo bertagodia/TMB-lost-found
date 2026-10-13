@@ -4,16 +4,17 @@ Feature branch: `feature/ranked-colors-transit-search` (based on main).
 
 ## Operator workflow
 
-1. Choose Bus or Metro and a registration line from the dropdown, then enter the
-   internal vehicle number. NFC remains available. This is registration context.
+1. In step 1 choose Bus or Metro, type the finding line, and enter the internal
+   vehicle number and finding date (if known). NFC remains available. Line inputs
+   are plain text placeholders; another teammate owns the future dropdown UI.
 2. Upload the photos. Extraction orders up to four colors by estimated visible
    coverage on the first photo: largest area first, then smaller areas/accents.
 3. Review the numbered color list. Use its up/down buttons to correct the order;
    the first color is labelled Principal. Added manual colors appear at the end.
    These are relative visual estimates, not segmentation measurements or percentages.
-4. Separately fill the confirmed finding transport, line and date in Details.
-   Unknown values can be left blank; date can be marked approximate. Registration
-   context never silently becomes finding metadata.
+4. Finding details are entered only in step 1, not repeated in Details. The date
+   can be unknown or approximate. The explicitly labelled finding line is used for
+   matching; existing records are never backfilled from old registration metadata.
 5. Review and save. Inventory corrections support both color order and finding
    metadata, with stale-revision checks and an append-only metadata audit.
 
@@ -77,8 +78,9 @@ Special bus services present in that source are included. This is TMB's network,
 not all metropolitan operators: FGC, Rodalies and other operators are not invented
 as TMB lines. Unknown-line choices remain available.
 
-Both browser and backend use this file. The app needs no TMB API credentials or
-network access for dropdowns. To refresh it:
+The backend uses this file to validate typed line codes. The browser no longer
+loads the catalogue or renders line dropdowns; that UI belongs to a teammate.
+No TMB API credentials are needed. To refresh the validation catalogue:
 
 ```bash
 curl --fail --location https://www.tmb.cat/ca/transport-barcelona -o /tmp/tmb-lines.html
@@ -96,8 +98,15 @@ chronological plausibility, approximate dates, catalogue validation, SQL round t
 metadata revision rollback, history, and idempotency. Run existing backend/database
 suites with TEST_DATABASE_URL pointing to a disposable PostgreSQL service.
 
-`client/tests/ranked-search.cjs` exercises mobile layout, dropdown changes, mocked
+`client/tests/ranked-search.cjs` exercises mobile layout, first-step metadata, extraction progress, mocked
 extraction order, manual reordering, invalid and day-first dates, persistence,
 search, report storage and inventory corrections against a test server. Set
 TEST_BASE_URL (default port 8002), TEST_PHOTO_1 and install Playwright/Chromium.
 The existing prototype browser test additionally supports real Ollama extraction.
+
+## Extraction progress
+
+The extraction panel uses a native, accessible indeterminate progress bar while
+waiting for Ollama, alongside elapsed seconds. Ollama does not supply a completion
+percentage. The bar fills only when a valid response arrives; errors stop it, and
+manual entry/reset hide it. Late responses from skipped attempts cannot restore it.

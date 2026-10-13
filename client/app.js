@@ -2,7 +2,6 @@ const OPTIONS = await fetch('./form-options.json').then(response => {
   if (!response.ok) throw new Error('No es poden carregar les opcions del formulari.');
   return response.json();
 });
-const TRANSIT = await fetch('./transit-options.json').then(r=>{if(!r.ok)throw new Error('No es poden carregar les línies.');return r.json();});
 const CONFIG={...OPTIONS,apiBaseUrl:localStorage.getItem('tmb_api_base_url')||location.origin};
 const LOCAL_TOKEN=document.querySelector('meta[name="local-token"]').content;
 const state={step:1,vehicle:null,photos:[null,null],details:{},activePhoto:0};const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
@@ -16,7 +15,7 @@ class RequestHistory{
 }
 class CitizenReportStore{constructor(key='tmb-lost-found-citizen-reports'){this.key=key}save(report){const reports=JSON.parse(localStorage.getItem(this.key)||'[]');reports.push(report);localStorage.setItem(this.key,JSON.stringify(reports))}}
 class NfcVehicleReader{async read(){if(!('NDEFReader'in window))throw new Error('NFC no disponible en aquest navegador');const reader=new NDEFReader();await reader.scan();return new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error('No s’ha detectat cap tag NFC')),15000);reader.onreadingerror=()=>{clearTimeout(timeout);reject(new Error('No s’ha pogut llegir el tag NFC'))};reader.onreading=({serialNumber,message})=>{clearTimeout(timeout);const textRecord=[...message.records].find(record=>record.recordType==='text'||record.recordType==='url');const raw=textRecord?new TextDecoder(textRecord.encoding||'utf-8').decode(textRecord.data):serialNumber;resolve(parseVehiclePayload(raw,serialNumber))}})}}
-function parseVehiclePayload(raw,serialNumber){try{const parsed=JSON.parse(raw);return{line:parsed.line||'—',vehicle:parsed.vehicle||serialNumber,source:'nfc'}}catch{return{line:raw||'—',vehicle:serialNumber||'—',source:'nfc'}}}
+function parseVehiclePayload(raw,serialNumber){try{const parsed=JSON.parse(raw);return{line:parsed.line||'—',transport:parsed.transport||null,vehicle:parsed.vehicle||serialNumber,source:'nfc'}}catch{return{line:raw||'—',vehicle:serialNumber||'—',source:'nfc'}}}
 class ApiClient {
   async request(path, body) {
     const response = await fetch(`${CONFIG.apiBaseUrl.replace(/\/$/,'')}${path}`, {
@@ -33,7 +32,7 @@ class ApiClient {
   extract(photo) { return this.request('/api/extract',{photo}); }
 }
 
-const queue=new LocalQueue();const history=new RequestHistory();const api=new ApiClient();function createId(){return crypto.randomUUID?crypto.randomUUID():`tmb-${Date.now()}-${Math.random().toString(16).slice(2)}`}function showToast(message){const toast=$('#toast');toast.textContent=message;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),3200)}function updatePendingCount(){$('#pendingCount').textContent=history.all().length}function setConnection(){const online=navigator.onLine;$('#connectionDot').classList.toggle('online',online);$('#connectionText').textContent=online?'Connexió disponible':'Sense connexió · mode pendent'}function populateSelect(id,values){const select=$(`#${id}`);values.forEach(value=>select.add(new Option(value,value)))}function setVehicle(vehicle){state.vehicle=vehicle;$('#nfcTitle').textContent=`${vehicle.line} · vehicle ${vehicle.vehicle}`;$('#nfcMessage').textContent=vehicle.source==='nfc'?'Vehicle identificat per NFC.':'Vehicle introduït en mode de proves.';$('#nextButton').disabled=false;$('#nextButton').textContent='Continuar amb les fotos';$('#draftText').textContent=`Vehicle ${vehicle.vehicle}`}
+const queue=new LocalQueue();const history=new RequestHistory();const api=new ApiClient();function createId(){return crypto.randomUUID?crypto.randomUUID():`tmb-${Date.now()}-${Math.random().toString(16).slice(2)}`}function showToast(message){const toast=$('#toast');toast.textContent=message;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),3200)}function updatePendingCount(){$('#pendingCount').textContent=history.all().length}function setConnection(){const online=navigator.onLine;$('#connectionDot').classList.toggle('online',online);$('#connectionText').textContent=online?'Connexió disponible':'Sense connexió · mode pendent'}function populateSelect(id,values){const select=$(`#${id}`);values.forEach(value=>select.add(new Option(value,value)))}function setVehicle(vehicle){state.vehicle=vehicle;$('#manualLine').value=vehicle.line==='—'?'':vehicle.line;$('#manualVehicle').value=vehicle.vehicle;$('#manualTransport').value=vehicle.transport||(/^L\d|^FM$/.test(vehicle.line)?'metro':vehicle.line&&vehicle.line!=='—'?'bus':'');$('#nfcTitle').textContent=`${vehicle.line} · vehicle ${vehicle.vehicle}`;$('#nfcMessage').textContent=vehicle.source==='nfc'?'Vehicle identificat per NFC.':'Vehicle introduït en mode de proves.';$('#nextButton').disabled=false;$('#nextButton').textContent='Continuar amb les fotos';$('#draftText').textContent=`Vehicle ${vehicle.vehicle}`}
 function setAudienceTab(audience){const isCitizen=audience==='citizen';$('#staffTab').classList.toggle('active',!isCitizen);$('#staffTab').setAttribute('aria-selected',String(!isCitizen));$('#citizenTab').classList.toggle('active',isCitizen);$('#citizenTab').setAttribute('aria-selected',String(isCitizen));$('#operatorPanel').hidden=isCitizen;$('#citizenPanel').hidden=!isCitizen;$('#pendingButton').hidden=isCitizen;if(isCitizen)$('#citizenDescription').focus({preventScroll:true})}
 function updateCitizenPhoto(file){if(!file){state.citizenPhoto=null;$('#citizenPhotoPreview').hidden=true;$('#citizenPhotoImage').removeAttribute('src');return}if(!file.type.startsWith('image/')){showToast('Selecciona un fitxer d’imatge.');$('#citizenPhoto').value='';return}const reader=new FileReader();reader.onload=()=>{state.citizenPhoto={name:file.name,mimeType:file.type,data:reader.result};$('#citizenPhotoImage').src=reader.result;$('#citizenPhotoPreview').hidden=false};reader.onerror=()=>showToast('No s’ha pogut llegir la fotografia.');reader.readAsDataURL(file)}
 let citizenEpoch=0, pendingReport=null;
@@ -83,9 +82,9 @@ function renderReview() {
   }));
 }
 function validStep(step) {
-  if(step===1)return Boolean(state.vehicle);
+  if(step===1)return Boolean(state.vehicle && validateDate('foundDate'));
   if(step===2)return state.photos.every(Boolean);
-  if(step===3)return Boolean(validateDate('foundDate') && selectedColors('color').length && $('#objectType').value && $('#material').value && $('#fieldsReviewed').checked && !extractionBusy);
+  if(step===3)return Boolean(selectedColors('color').length && $('#objectType').value && $('#material').value && $('#fieldsReviewed').checked && !extractionBusy);
   return true;
 }
 
@@ -112,7 +111,7 @@ async function submitRecord() {
     }
   }finally{$('#nextButton').disabled=state.step===1&&!state.vehicle;}
 }
-function resetForm(){pendingSubmission=null;invalidateExtraction();state.step=1;state.vehicle=null;state.photos=[null,null];state.details={};$('#draftText').textContent='Cap esborrany actiu';$('#nfcTitle').textContent='A punt per llegir';$('#nfcMessage').textContent='La lectura NFC associarà el registre a la línia o vehicle.';$('#nextButton').disabled=true;$('#nextButton').textContent='Comença amb el vehicle';$('#detailsForm').reset();setColors('color',[]);fillLines('found');fillLines('manual');$('#manualTransport').value='';$('#manualVehicle').value='';fillLines('manual');$$('.photo-preview').forEach((item,index)=>{item.style.backgroundImage='';item.innerHTML=`<span>Foto ${index+1}</span>`});$('.photo-button[data-photo="1"]').disabled=true;goToStep(1)}let syncing=false;
+function resetForm(){pendingSubmission=null;invalidateExtraction();state.step=1;state.vehicle=null;state.photos=[null,null];state.details={};$('#draftText').textContent='Cap esborrany actiu';$('#nfcTitle').textContent='A punt per llegir';$('#nfcMessage').textContent='La lectura NFC associarà el registre a la línia o vehicle.';$('#nextButton').disabled=true;$('#nextButton').textContent='Comença amb el vehicle';$('#detailsForm').reset();setColors('color',[]);$('#manualTransport').value='';$('#manualLine').value='';$('#manualVehicle').value='';$('#foundDate').value='';$('#foundApproximate').checked=false;$$('.photo-preview').forEach((item,index)=>{item.style.backgroundImage='';item.innerHTML=`<span>Foto ${index+1}</span>`});$('.photo-button[data-photo="1"]').disabled=true;goToStep(1)}let syncing=false;
 async function syncQueue(){
   if(syncing||!navigator.onLine||!CONFIG.apiBaseUrl)return;
   syncing=true;
@@ -166,13 +165,6 @@ function populateColors(id){
     const ranking=node('ol',undefined,'color-ranking');ranking.id=id+'Ranking';$('#'+id).after(ranking);
   }
 }
-function fillLines(prefix,selected=''){
-  const mode=$('#'+prefix+'Transport').value,select=$('#'+prefix+'Line');
-  select.replaceChildren(new Option(mode?'Línia desconeguda':'Selecciona el transport',''));
-  for(const item of TRANSIT.modes[mode]||[])select.add(new Option(item.label,item.id));
-  select.disabled=!mode;select.value=selected;
-}
-function configureTransit(prefix){$('#'+prefix+'Transport').addEventListener('change',()=>fillLines(prefix));fillLines(prefix);}
 function validateDate(id){
   const input=$('#'+id),v=input.value.trim();let valid=!v;
   if(/^\d{2}\/\d{2}\/\d{4}$/.test(v)){
@@ -184,7 +176,7 @@ function validateDate(id){
 }
 function readDate(id){const value=$('#'+id).value.trim();return value?value.split('/').reverse().join('-'):'';}
 function displayDate(value){return value?value.split('-').reverse().join('/'):'Data desconeguda';}
-function readFinding(prefix){const day=readDate(prefix+'Date');return {transport:$('#'+prefix+'Transport').value,line:$('#'+prefix+'Line').value,date:day,dateQuality:day?($('#'+prefix+'Approximate').checked?'approximate':'confirmed'):'unknown'};}
+function readFinding(prefix){const day=readDate(prefix+'Date'),locationPrefix=prefix==='found'?'manual':prefix;return {transport:$('#'+locationPrefix+'Transport').value,line:$('#'+locationPrefix+'Line').value.trim(),date:day,dateQuality:day?($('#'+prefix+'Approximate').checked?'approximate':'confirmed'):'unknown'};}
 function findingText(mode,line,date,quality){return `${mode==='bus'?'Bus':mode==='metro'?'Metro':'Transport desconegut'} · ${line||'Línia desconeguda'} · ${displayDate(date)}${quality==='approximate'?' (aproximada)':''}`;}
 let extractionBusy=false, extractionEpoch=0, attemptedPhoto=null;
 let autoValues=null, pendingExtraction=null;
@@ -192,6 +184,7 @@ const fieldVersions={colors:0,objectType:0,material:0,description:0};
 function currentFields(){return {colors:selectedColors('color'),objectType:$('#objectType').value||null,material:$('#material').value||null,description:$('#description').value};}
 function setField(key,value){if(key==='colors')setColors('color',value);else $('#'+key).value=value||'';}
 function invalidateExtraction(){
+  setExtractionProgress('idle');
   extractionEpoch++;attemptedPhoto=null;state.extraction=null;extractionBusy=false;
   if(autoValues){const current=currentFields();for(const key of Object.keys(autoValues))if(JSON.stringify(current[key])===JSON.stringify(autoValues[key]))setField(key,key==='colors'?[]:'');}
   autoValues=null;$('#fieldsReviewed').checked=false;$('#extractionDetails').hidden=true;
@@ -204,10 +197,10 @@ async function autoExtract(force=false){
   if(!photo||extractionBusy||(!force&&attemptedPhoto===photo))return;
   const epoch=++extractionEpoch,versions={...fieldVersions},before=currentFields();
   attemptedPhoto=photo;extractionBusy=true;$('#fieldsReviewed').checked=false;
-  $('#retryExtraction').disabled=true;
+  $('#retryExtraction').disabled=true;setExtractionProgress('running');
   $('#extractionStatus').textContent='Extraient els camps de la foto principal amb Ollama… Pots escriure mentre esperes; conservarem els teus canvis.';
   const started=performance.now();
-  const elapsedTimer=setInterval(()=>{if(epoch===extractionEpoch)$('#extractionStatus').textContent=`Extraient els camps… ${Math.floor((performance.now()-started)/1000)} s. La primera petició després d’una pausa pot trigar més. Pots escriure mentre esperes; conservarem els teus canvis.`;},1000);
+  const elapsedTimer=setInterval(()=>{if(epoch===extractionEpoch){setExtractionProgress('running',Math.floor((performance.now()-started)/1000));$('#extractionStatus').textContent=`Extraient els camps… ${Math.floor((performance.now()-started)/1000)} s. La primera petició després d’una pausa pot trigar més. Pots escriure mentre esperes; conservarem els teus canvis.`;}},1000);
   try{
     if(pendingExtraction)await pendingExtraction.catch(()=>{});
     if(epoch!==extractionEpoch||state.photos[0]!==photo)return;
@@ -220,6 +213,7 @@ async function autoExtract(force=false){
        (fields.objectType!==null&&!CONFIG.objectTypes.includes(fields.objectType))||
        (fields.material!==null&&!CONFIG.materials.includes(fields.material))||typeof fields.description!=='string'||fields.description.length>250)
       throw new Error('La resposta no compleix els camps del formulari.');
+    setExtractionProgress('complete',Math.floor((performance.now()-started)/1000));
     state.extraction=result;
     $('#fieldsReviewed').checked=false;
     for(const key of ['colors','objectType','material','description']){
@@ -235,7 +229,7 @@ async function autoExtract(force=false){
     if(result.recognized_object)$('#extractionStatus').textContent+=` Objecte: ${result.recognized_object}.`;
     if(Array.isArray(result.warnings)&&result.warnings.length)$('#extractionStatus').textContent+=' '+result.warnings.join(' ');
     $('#extractionStatus').textContent+=` Temps d’aquesta petició: ${((performance.now()-started)/1000).toFixed(1)} s${result.cached?' (resultat guardat)':''}.`;
-  }catch(error){if(epoch===extractionEpoch)$('#extractionStatus').textContent=`No s’ha pogut extreure: ${error.message} Pots omplir els camps manualment o reintentar.`;}
+  }catch(error){if(epoch===extractionEpoch){setExtractionProgress('failed');$('#extractionStatus').textContent=`No s’ha pogut extreure: ${error.message} Pots omplir els camps manualment o reintentar.`;}}
   finally{clearInterval(elapsedTimer);if(epoch===extractionEpoch){extractionBusy=false;$('#retryExtraction').disabled=false;}}
 }
 
@@ -265,7 +259,7 @@ async function refreshInventory(){
     }
   }catch(error){$('#inventoryStatus').textContent=error.message;}
 }
-function openEdit(item){editingObject=item;$('#editFoundTransport').value=item.found_transport||'';fillLines('editFound',item.found_line||'');$('#editFoundDate').value=item.found_date?displayDate(item.found_date):'';$('#editFoundApproximate').checked=item.date_quality==='approximate';setColors('editColors',item.colors||[]);$('#editType').value=item.object_type||'';$('#editMaterial').value=item.material||'';$('#editDescription').value=item.description||'';$('#editDecision').value=item.review_status||'approved';$('#editStatus').textContent='';editingFindingTouched=false;$('#editDialog').showModal();}
+function openEdit(item){editingObject=item;$('#editFoundTransport').value=item.found_transport||'';$('#editFoundLine').value=item.found_line||'';$('#editFoundDate').value=item.found_date?displayDate(item.found_date):'';$('#editFoundApproximate').checked=item.date_quality==='approximate';setColors('editColors',item.colors||[]);$('#editType').value=item.object_type||'';$('#editMaterial').value=item.material||'';$('#editDescription').value=item.description||'';$('#editDecision').value=item.review_status||'approved';$('#editStatus').textContent='';editingFindingTouched=false;$('#editDialog').showModal();}
 populateColors('editColors');populateSelect('editType',CONFIG.objectTypes);populateSelect('editMaterial',CONFIG.materials);
 $('#inventoryButton').addEventListener('click',()=>{$('#inventoryDialog').showModal();refreshInventory();});
 $('#refreshInventory').addEventListener('click',refreshInventory);
@@ -279,7 +273,16 @@ $('#editForm').addEventListener('submit',async event=>{
   }catch(error){$('#editStatus').textContent=error.message;}finally{button.disabled=false;}
 });
 
-for(const prefix of ['manual','found','citizen','editFound'])configureTransit(prefix);
+for(const id of ['manualTransport','manualLine','manualVehicle'])$('#'+id).addEventListener('input',()=>{state.vehicle=null;$('#nextButton').disabled=true;});
 for(const id of ['foundDate','citizenLossDate','editFoundDate'])$('#'+id).addEventListener('input',()=>$('#'+id).setCustomValidity(''));
 
 $('#editForm .finding-fields').addEventListener('input',()=>{editingFindingTouched=true;});
+
+function setExtractionProgress(status,seconds=0){
+  const container=$('#extractionProgress'),bar=$('#extractionBar');
+  container.hidden=status==='idle';
+  bar.hidden=status==='failed';
+  if(status==='complete')bar.value=1;else bar.removeAttribute('value');
+  $('#extractionProgressLabel').textContent=status==='complete'?`Extracció finalitzada · ${seconds} s`:status==='failed'?'Extracció interrompuda. Pots reintentar.':`Analitzant la foto · ${seconds} s`;
+  $('.extraction-panel').setAttribute('aria-busy',String(status==='running'));
+}

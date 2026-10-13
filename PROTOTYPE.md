@@ -1,6 +1,6 @@
 # Functional local prototype — version 0.1
 
-Current feature update: [ranked colors, finding line/date and transport dropdowns](docs/RANKED_SEARCH.md).
+Current feature update: [ranked colors, finding line/date and extraction progress](docs/RANKED_SEARCH.md).
 
 First installation? Follow [SETUP.md](SETUP.md) for step-by-step Windows and
 macOS/Linux instructions, expected results and troubleshooting.
