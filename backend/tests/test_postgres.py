@@ -41,7 +41,7 @@ class PostgresTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.app=PostgresApplication(self.temp.name,self.dsn,'test-model')
         with self.app.repo.connect() as conn:
-            conn.execute('TRUNCATE tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
+            conn.execute('TRUNCATE tmb.finding_reviews,tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
         data=io.BytesIO();Image.new('RGB',(24,24),'orange').save(data,format='JPEG')
         self.photo=dict(data='data:image/jpeg;base64,'+base64.b64encode(data.getvalue()).decode())
         self.fields=dict(colors=['Taronja','Negre'],objectType='Ampolla',material='Metall',description='Orange bottle')
@@ -118,3 +118,36 @@ class PostgresTests(unittest.TestCase):
             self.assertEqual(conn.execute('SELECT status FROM tmb.extraction_runs').fetchone()['status'],'failed')
         self.app.submit(self.record)
         self.assertEqual(len(self.app.search(dict(description='bottle'))['candidates']),1)
+
+    def test_finding_and_ordered_colors_roundtrip_review_and_report(self):
+        finding=dict(transport='bus',line='H12',date='2026-10-08',dateQuality='confirmed')
+        details={**self.fields,'colorOrderKnown':True}
+        self.app.submit({**self.record,'finding':finding,'details':details})
+        self.assertTrue(self.app.submit({**self.record,'finding':finding,'details':details})['duplicate'])
+        item=self.app.inventory({})['objects'][0]
+        self.assertEqual((item['found_line'],item['found_date'],item['color_order_known']),('H12','2026-10-08',True))
+        # Matching and nonmatching selected colors do not remove the object.
+        query=dict(description='bottle',transport='bus',line='H12',lostDate='2026-10-08',filters={'colors':['Taronja','Blau']})
+        result=self.app.search(query)['candidates'][0]
+        self.assertEqual(result['colors'],['Taronja','Negre'])
+        self.assertTrue(result['colorOrderKnown'])
+        self.app.review(dict(id='test-record',revision=1,reviewed=True,details={**details,'colors':['Negre','Taronja']},
+                             finding={**finding,'line':'H14','date':'2026-10-09'}))
+        updated=self.app.search(query)['candidates'][0]
+        self.assertEqual((updated['foundLine'],updated['foundDate'],updated['colors'][0]),('H14','2026-10-09','Negre'))
+        self.assertLess(updated['score'],result['score'])
+        report=dict(id='with-transit',description='bottle',incident={'transport':'bus','line':'H12','lossDate':'2026-10-08','dateApproximate':True})
+        self.app.lost_report(report)
+        with self.app.repo.connect() as conn:
+            row=conn.execute('SELECT lost_transport,lost_line,date_approximate FROM tmb.lost_reports WHERE id=%s',('with-transit',)).fetchone()
+            self.assertEqual(row,dict(lost_transport='bus',lost_line='H12',date_approximate=True))
+            self.assertEqual(conn.execute('SELECT count(*) AS n FROM tmb.finding_reviews').fetchone()['n'],2)
+
+    def test_registration_context_is_not_finding_and_invalid_corrections_roll_back(self):
+        self.app.submit(self.record)
+        item=self.app.inventory({})['objects'][0]
+        self.assertIsNone(item['found_line']);self.assertIsNone(item['found_date'])
+        self.assertFalse(item['color_order_known'])
+        with self.assertRaises(ValueError):
+            self.app.review(dict(id='test-record',revision=1,reviewed=True,details=self.fields,finding={'transport':'metro','line':'H12'}))
+        self.assertEqual(self.app.inventory({})['objects'][0]['revision'],1)

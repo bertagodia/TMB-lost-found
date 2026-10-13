@@ -1,9 +1,13 @@
 # Prototype feedback and deferred improvements
 
-Recorded: 9 October 2026. Status: backlog, not implemented.
+Recorded: 9 October 2026. Updated: 13 October 2026.
 
-These changes capture feedback from hands-on prototype testing. Keep the current
-application running as-is; use this document to scope the next iteration.
+Line/date ranking, dd/mm/yyyy dates, softer ranked colors and removal of the citizen
+vehicle-number suggestion are now implemented on `feature/ranked-colors-transit-search`.
+See [the implementation notes](RANKED_SEARCH.md). The original feedback below is
+retained as context; object-type simplification and image-based search remain deferred.
+
+These changes capture feedback from hands-on prototype testing. Use this document to track remaining scope alongside the implementation notes.
 
 ## 1. Prioritize the line where the object was found
 
@@ -92,7 +96,7 @@ Keep this as positive qualitative feedback, not a measured accuracy claim. Inclu
 bowls and other less common objects in a future repeatable evaluation, checking
 description-only retrieval as well as uncertain colors, types and lines.
 
-## How matching currently works
+## Matching at the time of the original feedback (version 0.1)
 
 1. At operator ingestion, local `qwen3-vl:2b-instruct` extracts attributes from the
    first object photo. A person reviews/corrects these before registration.

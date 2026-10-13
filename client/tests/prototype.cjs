@@ -10,7 +10,7 @@ async function addPhoto(page,slot){const chooser=page.waitForEvent('filechooser'
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  try{
   const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(base);await page.locator('#manualLine').fill('TEST');await page.locator('#manualVehicle').fill('PROTO');await page.locator('#manualVehicleButton').click();await page.locator('#nextButton').click();await addPhoto(page,0);await addPhoto(page,1);
+  await page.goto(base);await page.locator('#manualTransport').selectOption('bus');await page.locator('#manualLine').selectOption('H12');await page.locator('#manualVehicle').fill('PROTO');await page.locator('#manualVehicleButton').click();await page.locator('#nextButton').click();await addPhoto(page,0);await addPhoto(page,1);
   if(process.env.MOCK_EXTRACTION==='1')await page.route('**/api/extract',route=>route.fulfill({status:400,json:{error:'Manual-path test'}}));
   const extraction=page.waitForResponse(r=>r.url().endsWith('/api/extract'),{timeout:310000});
   await page.locator('#nextButton').click();const extracted=await extraction;

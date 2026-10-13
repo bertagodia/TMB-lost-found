@@ -189,7 +189,7 @@ la conexión a PostgreSQL; la siguiente prueba comprueba la extracción real.
 Abre **http://127.0.0.1:8001**. No abras `client/index.html` directamente ni uses
 `python -m http.server`: esos métodos no arrancan la API.
 
-1. En **Operaris TMB**, introduce la línea `TEST` y el vehículo `001`.
+1. En **Operaris TMB**, selecciona Bus, la línea `H12` y el vehículo `001`.
 2. Añade dos fotos del mismo objeto, por ejemplo una botella. Puedes usar tus
    propias imágenes JPEG, PNG o WebP estático.
 3. Continúa a **Detalls** y espera la extracción. Solo se analiza la primera foto;
@@ -207,7 +207,9 @@ Abre **http://127.0.0.1:8001**. No abras `client/index.html` directamente ni use
 
 La búsqueda actual compara palabras, no el significado general: no traduce entre
 idiomas. Los textos extraídos son ingleses y las etiquetas del formulario siguen
-siendo provisionales. Los colores y el tipo seleccionados restringen los resultados.
+siendo provisionales. El tipo seleccionado restringe resultados; los colores, la línea y la fecha ayudan
+a ordenarlos. Revisa el orden de colores y completa por separado la línea y fecha
+reales del hallazgo, si las conoces. Consulta [los nuevos campos](docs/RANKED_SEARCH.md).
 La foto del ciudadano se guarda como referencia, pero no participa en la búsqueda.
 Consulta [las funcionalidades y límites](PROTOTYPE.md) y las
 [mejoras pendientes](docs/PROTOTYPE_IMPROVEMENTS.md).

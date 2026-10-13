@@ -35,7 +35,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('Tèxtil', OPTIONS['materials'])
         self.assertIn('Plàstic', OPTIONS['materials'])
         self.assertEqual(TAXONOMY['materials']['textile'], 'Tèxtil')
-        self.assertEqual(list(FormFields.model_fields), ['colors', 'objectType', 'material', 'description'])
+        self.assertEqual(list(FormFields.model_fields), ['colors', 'colorOrderKnown', 'objectType', 'material', 'description'])
         value = FormFields.model_validate_json(json.dumps(self.fields))
         self.assertEqual(value.model_dump(mode='json')['colors'], ['Gris', 'Negre'])
         with self.assertRaises(ValidationError):
@@ -46,7 +46,7 @@ class IntegrationTests(unittest.TestCase):
     def test_real_contract_and_unusable_output_gate(self):
         with patch('search.form_extraction.request_json', return_value=json.dumps(self.draft)) as model:
             result = extract_form(self.image)
-            self.assertEqual(result['fields'], self.fields)
+            self.assertEqual(result['fields'], {**self.fields,'colorOrderKnown':True})
             self.assertEqual(result['review_status'], 'pending')
             self.assertIn('WHOLE object', model.call_args.kwargs['prompt'])
             self.assertEqual(result['recognized_object'], 'backpack')

@@ -17,6 +17,9 @@ class FoundObject:
     found_line: str | None = None
     found_direction: str | None = None
     date_quality: Literal['unknown', 'approximate', 'confirmed'] = 'unknown'
+    colors: tuple[str, ...] = ()
+    color_order_known: bool = False
+    found_transport: str | None = None
 
     def __post_init__(self):
         if not isinstance(self.id, str) or not self.id.strip():
@@ -40,6 +43,8 @@ class SearchQuery:
     line: str | None = None
     direction: str | None = None
     date_approximate: bool = False
+    colors: tuple[str, ...] = ()
+    transport: str | None = None
 
     def __post_init__(self):
         if not isinstance(self.description, str) or not 1 <= len(self.description.strip()) <= 2000:
@@ -58,6 +63,7 @@ class Candidate:
     text_score: float
     metadata_score: float
     signals: tuple[str, ...]
+    rank_score: float = 0.0
 
 
 @dataclass(frozen=True)

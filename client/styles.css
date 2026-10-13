@@ -9,3 +9,15 @@
 [hidden]{display:none!important}
 
 #inventoryButton{margin-bottom:20px}.result-card{display:flex;gap:18px;padding:18px;margin:16px 0;border:1px solid #ddd;border-radius:12px;background:white}.result-card img{width:120px;height:140px;object-fit:contain}.result-card h3{margin-top:0}.result-card p{margin:7px 0}.result-card small,.request-item small{overflow-wrap:anywhere}.inventory-photo{width:100px;height:110px;object-fit:contain;float:right}.request-item button{margin:12px 8px 0 0}#searchResults{margin-top:26px}#editDialog{max-width:650px}#inventoryDialog{max-width:760px}#editStatus{grid-column:1/-1}@media(max-width:450px){.result-card{display:block}.result-card img{width:100%;height:180px}}
+
+/* Ordered coverage is an estimate, not a measured percentage. */
+.color-ranking { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .4rem; }
+.color-ranking li { display: flex; align-items: center; gap: .5rem; padding: .5rem .7rem; background: #f3f4f6; border-radius: .5rem; }
+.color-ranking li:first-child { border-left: 4px solid #e30613; font-weight: 650; }
+.color-ranking li span { flex: 1; }
+.rank-button { min-width: 40px; min-height: 40px; border: 1px solid #ccc; border-radius: 6px; background: white; cursor: pointer; }
+.rank-button:disabled { opacity: .35; cursor: default; }
+.finding-fields { display: grid; gap: .8rem; border: 1px solid #ddd; border-radius: 12px; padding: 1rem; min-width: 0; }
+.finding-fields legend { font-weight: 700; }
+.match-signals { font-size: .85rem; color: #40574a; }
+select { max-width: 100%; min-width: 0; }

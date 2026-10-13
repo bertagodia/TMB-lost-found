@@ -157,7 +157,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
-                 '/form-options.json': 'form-options.json'}
+                 '/form-options.json': 'form-options.json', '/transit-options.json':'transit-options.json'}
         if path not in files:
             return self.respond(404, {'error': 'No trobat.'})
         file = ROOT / 'client' / files[path]

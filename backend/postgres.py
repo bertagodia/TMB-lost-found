@@ -13,6 +13,7 @@ from search.form_extraction import FormFields, FORM_PROMPT_VERSION, OPTIONS
 from search.extraction import PREPROCESS_VERSION, _prepare_image
 from search.pipeline import model_digest
 from .server import Application, decode_image
+from .transit import finding, transit, calendar_date
 
 
 def text(value, limit, *, required=False):
@@ -46,6 +47,8 @@ def fields(value):
     parsed = FormFields.model_validate_json(json.dumps(value)).model_dump(mode='json')
     if not parsed['colors'] or not parsed['objectType'] or not parsed['material']:
         raise ValueError('Revisa colors, tipus i material.')
+    if 'colorOrderKnown' not in value:
+        parsed.pop('colorOrderKnown', None)  # Preserve legacy retry hashes.
     return parsed
 
 
@@ -123,8 +126,14 @@ class PostgresApplication(Application):
             vehicle_source=vehicle.get('source'))
         if metadata['vehicle_source'] not in (None,'manual','nfc'):
             raise ValueError('Origen del vehicle invàlid.')
+        found = finding(record['finding']) if 'finding' in record else None
+        if found:
+            metadata.update({k:v.isoformat() if isinstance(v,date) else v for k,v in found.items() if k!='found_transport'})
         extraction_id = text(record.get('extractionId'),160)
-        request_hash = hash_json(dict(details=details,photos=hashes,metadata=metadata,extraction_id=extraction_id))
+        request_data = dict(details=details,photos=hashes,metadata=metadata,extraction_id=extraction_id)
+        if found is not None:
+            request_data['found_transport'] = found['found_transport']
+        request_hash = hash_json(request_data)
         staged = []
         try:
             with self.repo.connect() as conn:
@@ -157,21 +166,34 @@ class PostgresApplication(Application):
                     attempt_id = clone['id']
                 self.repo.register_object(object_id,photo_ids=staged,details=details,reviewed=True,
                     extraction_id=attempt_id,connection=conn,**metadata)
+                if found is not None:
+                    conn.execute('UPDATE tmb.found_objects SET found_transport=%s WHERE id=%s',(found['found_transport'],object_id))
+                    self.record_finding(conn,object_id,found)
                 conn.execute('INSERT INTO tmb.http_submissions(object_id,request_hash) VALUES (%s,%s)',(object_id,request_hash))
             return dict(id=object_id,queued=False,status='stored-postgres',duplicate=False)
         finally:
             self.discard_staged(staged)
 
+    @staticmethod
+    def record_finding(conn, object_id, found):
+        from psycopg.types.json import Jsonb
+        snapshot = {k:v.isoformat() if isinstance(v,date) else v for k,v in found.items()}
+        conn.execute('''INSERT INTO tmb.finding_reviews(object_id,review_id,metadata)
+            SELECT %s,id,%s FROM tmb.object_reviews WHERE object_id=%s ORDER BY revision DESC LIMIT 1''',
+            (object_id,Jsonb(snapshot),object_id))
+
     def inventory(self, payload):
         with self.repo.connect() as conn:
             rows = conn.execute('''SELECT o.id,o.status,o.created_at,o.registered_line,o.registered_vehicle,
-                r.revision,r.status AS review_status,r.object_type,r.colors,r.material,r.description,
+                o.found_transport,o.found_line,o.found_date,o.date_quality,
+                r.revision,r.status AS review_status,r.object_type,r.colors,r.color_order_known,r.material,r.description,
                 p.id AS photo_id FROM tmb.found_objects o
                 LEFT JOIN LATERAL (SELECT * FROM tmb.object_reviews WHERE object_id=o.id ORDER BY revision DESC LIMIT 1) r ON true
                 LEFT JOIN tmb.photos p ON p.object_id=o.id AND p.position=1
                 ORDER BY o.created_at DESC LIMIT 200''').fetchall()
         for row in rows:
             row['created_at'] = row['created_at'].isoformat()
+            row['found_date'] = row['found_date'].isoformat() if row['found_date'] else None
         return dict(objects=rows)
 
     def review(self, payload):
@@ -188,6 +210,11 @@ class PostgresApplication(Application):
                 raise ConflictError('Hi ha una revisió més nova. Actualitza l’inventari.')
             from database.repository import _review
             result = _review(conn,object_id,fields(payload.get('details')),status=payload.get('status','approved'))
+            if 'finding' in payload:
+                found = finding(payload['finding'])
+                conn.execute('''UPDATE tmb.found_objects SET found_transport=%s,found_line=%s,found_date=%s,date_quality=%s WHERE id=%s''',
+                    (found['found_transport'],found['found_line'],found['found_date'],found['date_quality'],object_id))
+                self.record_finding(conn,object_id,found)
         return dict(id=object_id,revision=result['revision'])
 
     def status(self, payload):
@@ -205,25 +232,29 @@ class PostgresApplication(Application):
             raise ValueError('Tipus invàlid.')
         if not isinstance(colors,list) or any(c not in OPTIONS['colors'] for c in colors):
             raise ValueError('Colors invàlids.')
-        lost_date = payload.get('lostDate') or None
-        if lost_date:
-            lost_date = date.fromisoformat(text(lost_date,10,required=True))
+        lost_date = calendar_date(payload.get('lostDate'))
+        mode, line = transit(payload.get('transport'),payload.get('line'))
+        approximate = payload.get('dateApproximate',False)
+        if type(approximate) is not bool:
+            raise ValueError('Precisió de data invàlida.')
         with self.repo.connect() as conn:
-            rows = conn.execute('''SELECT s.*,r.object_type,r.colors,r.material,r.description AS reviewed_description,p.id AS photo_id
-                FROM tmb.searchable_objects s JOIN tmb.object_reviews r ON r.id=s.review_id
+            rows = conn.execute('''SELECT s.*,o.found_transport,r.object_type,r.colors,r.color_order_known,r.material,r.description AS reviewed_description,p.id AS photo_id
+                FROM tmb.searchable_objects s JOIN tmb.found_objects o ON o.id=s.id JOIN tmb.object_reviews r ON r.id=s.review_id
                 LEFT JOIN tmb.photos p ON p.object_id=s.id AND p.position=1
-                WHERE (%s::text IS NULL OR r.object_type=%s) AND (%s::text[]='{}' OR r.colors @> %s::text[])''',
-                (object_type,object_type,colors,colors)).fetchall()
-        objects = [FoundObject(**{k:row[k] for k in ('id','description','found_date','date_quality','found_line','found_direction')}) for row in rows]
-        query_text = ' '.join([description,object_type or '',*colors])
-        matches = SearchEngine(objects).search(SearchQuery(query_text[:2000],lost_date=lost_date),limit=20)
+                WHERE (%s::text IS NULL OR r.object_type=%s)''',
+                (object_type,object_type)).fetchall()
+        objects = [FoundObject(**{k:row[k] for k in ('id','description','found_date','date_quality','found_line','found_direction','colors','color_order_known','found_transport')}) for row in rows]
+        query_text = ' '.join([description,object_type or ''])
+        matches = SearchEngine(objects).search(SearchQuery(query_text[:2000],lost_date=lost_date,line=line,transport=mode,colors=tuple(colors),date_approximate=approximate),policy='ranked',limit=20)
         lookup = {row['id']:row for row in rows}
         results = []
         for candidate in matches.candidates:
             row = lookup[candidate.object_id]
             results.append(dict(id=row['id'],objectType=row['object_type'],colors=row['colors'],material=row['material'],
                 description=row['reviewed_description'],photo_url=f"/api/photos/{row['photo_id']}" if row['photo_id'] else None,
-                score=round(candidate.text_score,4),signals=list(candidate.signals)))
+                colorOrderKnown=row['color_order_known'],foundLine=row['found_line'],foundTransport=row['found_transport'],
+                foundDate=row['found_date'].isoformat() if row['found_date'] else None,dateQuality=row['date_quality'],
+                score=round(candidate.rank_score,4),textScore=round(candidate.text_score,4),signals=list(candidate.signals)))
         return dict(candidates=results,inventory_count=len(rows))
 
     def lost_report(self, payload):
@@ -234,6 +265,8 @@ class PostgresApplication(Application):
             raise ValueError('Declaració invàlida.')
         query = dict(description=text(payload.get('description'),500,required=True),
             filters=payload.get('filters') or {},lostDate=incident.get('lossDate') or None)
+        if any(key in incident for key in ('transport','line','dateApproximate')):
+            query.update(transport=incident.get('transport'),line=incident.get('line'),dateApproximate=incident.get('dateApproximate',False))
         results = self.search(query)  # Validate before storing; query only contains search data.
         contacts = {k:text(contact.get(k),limit) for k,limit in [('name',120),('email',254),('phone',40)]}
         location = text(incident.get('location'),100)
@@ -256,6 +289,9 @@ class PostgresApplication(Application):
                         location_text,object_type,colors,submission_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)''',
                         (report_id,created,query['description'],query['lostDate'],location,
                          query['filters'].get('objectType') or None,query['filters'].get('colors') or [],digest))
+                    mode,line = transit(query.get('transport'),query.get('line'))
+                    conn.execute('UPDATE tmb.lost_reports SET lost_transport=%s,lost_line=%s,date_approximate=%s WHERE id=%s',
+                        (mode,line,query.get('dateApproximate',False),report_id))
                     if any(contacts.values()):
                         conn.execute('INSERT INTO tmb.report_contacts(report_id,name,email,phone) VALUES (%s,%s,%s,%s)',
                                      (report_id,contacts['name'],contacts['email'],contacts['phone']))
