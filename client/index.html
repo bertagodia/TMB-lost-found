@@ -7,6 +7,7 @@
     <meta name="description" content="Registre d'objectes perduts trobats per operaris de TMB" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="location-assignment.css" />
     <title>TMB Lost &amp; Found</title>
   </head>
   <body>
@@ -31,6 +32,19 @@
       </nav>
       <div class="content">
         <section class="view active" data-view="1"><div class="view-heading"><p class="section-kicker">Pas 1 de 4</p><h2 id="vehicleHeading">Identifica la línia</h2><p class="muted" id="vehicleInstructions">Apropa el mòbil al tag del vehicle abans de començar.</p></div>
+          <section class="origin-card" id="originPanel" role="tabpanel" aria-labelledby="stationOriginTab">
+            <div><p class="section-kicker">Ubicació de la troballa</p><h3 id="originTitle">On fas la foto?</h3><p class="muted">Selecciona l’estació o la cotxera d’origen per assignar la central de destinació.</p></div>
+            <nav class="origin-tabs" role="tablist" aria-label="Tipus de punt d’origen">
+              <button class="origin-tab active" id="stationOriginTab" type="button" role="tab" aria-selected="true" aria-controls="originPanel" data-origin-kind="station">Estació</button>
+              <button class="origin-tab" id="depotOriginTab" type="button" role="tab" aria-selected="false" aria-controls="originPanel" data-origin-kind="depot">Cotxera</button>
+            </nav>
+            <label for="originLocation"><span id="originLocationLabel">Estació</span>
+              <select id="originLocation" required><option value="">Selecciona una estació</option></select>
+            </label>
+            <input id="originKind" type="hidden" value="station" />
+            <input id="originDestination" type="hidden" />
+            <p class="origin-assignment" id="originAssignment" aria-live="polite">La central de destinació es mostrarà en seleccionar l’origen.</p>
+          </section>
           <div class="nfc-panel"><div class="nfc-symbol" aria-hidden="true">⌁</div><div><strong id="nfcTitle">A punt per llegir</strong><p id="nfcMessage">La lectura NFC associarà el registre a la línia o vehicle.</p></div><button class="primary-button" id="scanNfcButton" type="button">Llegir NFC</button></div>
           <div class="manual-card"><div><p class="section-kicker">Entorn de proves</p><strong id="manualEntryTitle">Vehicle introduït manualment</strong><p class="muted">Només disponible mentre no hi hagi un tag NFC configurat.</p></div><div class="manual-fields"><label>Línia<input id="manualLine" placeholder="p. ex. L5" maxlength="12" /></label><label><span id="locationFieldLabel">Vehicle</span><input id="manualVehicle" placeholder="p. ex. 3421" maxlength="100" /></label></div></div>
         </section>
@@ -70,6 +84,6 @@
       </form>
     </section>
     </main>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script><script src="location-assignment.js" type="module"></script>
   </body>
 </html>
