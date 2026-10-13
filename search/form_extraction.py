@@ -13,8 +13,8 @@ from .extraction import ExtractionError, PREPROCESS_VERSION, _prepare_image, req
 from .settings import DEFAULT_MODEL, DEFAULT_TIMEOUT
 from .storage import utc_now
 
-OPTIONS = json.loads((Path(__file__).resolve().parent.parent / 'client/form-options.json').read_text())
-TAXONOMY = json.loads(Path(__file__).with_name('form-taxonomy.json').read_text())
+OPTIONS = json.loads((Path(__file__).resolve().parent.parent / 'client/form-options.json').read_text(encoding='utf-8'))
+TAXONOMY = json.loads(Path(__file__).with_name('form-taxonomy.json').read_text(encoding='utf-8'))
 # Taxonomy changes invalidate UI caches as well as prompt changes.
 FORM_PROMPT_VERSION = 'wp4-recognition-v3-' + hashlib.sha256(
     json.dumps([OPTIONS, TAXONOMY], sort_keys=True).encode()).hexdigest()[:12]

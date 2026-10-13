@@ -61,7 +61,7 @@ class Application:
                                            FORM_PROMPT_VERSION, PREPROCESS_VERSION]).encode()).hexdigest()
             cache = self.data_dir / 'extractions' / (key + '.json')
             if cache.exists():
-                return {**json.loads(cache.read_text()), 'cached': True}
+                return {**json.loads(cache.read_text(encoding='utf-8')), 'cached': True}
             with tempfile.TemporaryDirectory() as folder:
                 image = Path(folder) / 'photo'
                 image.write_bytes(raw)
@@ -100,7 +100,7 @@ class Application:
         target = self.data_dir / 'records' / (hashlib.sha256(object_id.encode()).hexdigest() + '.json')
         with self.save_lock:
             if target.exists():
-                if json.loads(target.read_text()) != normalized:
+                if json.loads(target.read_text(encoding='utf-8')) != normalized:
                     raise FileExistsError('Aquest ID ja existeix amb dades diferents.')
                 return {'id': object_id, 'queued': False, 'status': 'received-local', 'duplicate': True}
             extraction_id = record.get('extractionId')
@@ -108,7 +108,7 @@ class Application:
                 if not isinstance(extraction_id, str) or len(extraction_id) != 64 or any(c not in '0123456789abcdef' for c in extraction_id):
                     raise ValueError('Referència d’extracció invàlida.')
                 extraction_path = self.data_dir / 'extractions' / (extraction_id + '.json')
-                extraction = json.loads(extraction_path.read_text())
+                extraction = json.loads(extraction_path.read_text(encoding='utf-8'))
                 if extraction['image_sha256'] != hashlib.sha256(decode_image(photos[0])).hexdigest():
                     raise ValueError('L’extracció no correspon a la fotografia principal.')
             write_json(target, normalized)

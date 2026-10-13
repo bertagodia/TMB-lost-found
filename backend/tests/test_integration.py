@@ -9,7 +9,7 @@ from unittest.mock import patch
 from PIL import Image
 from pydantic import ValidationError
 from backend.server import Application
-from search.form_extraction import FormFields, Recognition, extract_form
+from search.form_extraction import FormFields, OPTIONS, Recognition, TAXONOMY, extract_form
 from search.extraction import ExtractionError
 
 
@@ -32,6 +32,9 @@ class IntegrationTests(unittest.TestCase):
                            capturedAt='2026-10-08T10:00:00Z', status='pending')
 
     def test_order_multi_colors_and_strict_choices(self):
+        self.assertIn('Tèxtil', OPTIONS['materials'])
+        self.assertIn('Plàstic', OPTIONS['materials'])
+        self.assertEqual(TAXONOMY['materials']['textile'], 'Tèxtil')
         self.assertEqual(list(FormFields.model_fields), ['colors', 'objectType', 'material', 'description'])
         value = FormFields.model_validate_json(json.dumps(self.fields))
         self.assertEqual(value.model_dump(mode='json')['colors'], ['Gris', 'Negre'])
@@ -66,8 +69,9 @@ class IntegrationTests(unittest.TestCase):
             self.app.submit({**record, 'reviewed': False})
         self.assertFalse(self.app.submit(record)['queued'])
         self.assertTrue(self.app.submit(record)['duplicate'])
-        saved = json.loads(next((self.root/'store/records').glob('*.json')).read_text())
+        saved = json.loads(next((self.root/'store/records').glob('*.json')).read_text(encoding='utf-8'))
         self.assertEqual(saved['details']['colors'], ['Gris', 'Negre'])
+        self.assertEqual(saved['details']['material'], 'Tèxtil')
         self.assertEqual(saved['extractionId'], first['id'])
         with self.assertRaises(FileExistsError):
             self.app.submit({**record, 'details': {**self.fields, 'description': 'changed'}})

@@ -62,7 +62,7 @@ def summarize(rows):
 
 
 def legacy_extract(path, *, model, crop, timeout):
-    baseline = json.loads(BASELINE.read_text())
+    baseline = json.loads(BASELINE.read_text(encoding='utf-8'))
     encoded, digest = _prepare_image(path, crop=crop)
     raw = json.loads(request_json([encoded], schema=baseline['schema'],
                                  prompt=baseline['prompt'], model=model, timeout=timeout))
@@ -76,7 +76,7 @@ def legacy_extract(path, *, model, crop, timeout):
 
 
 def run(args):
-    manifest = json.loads(args.manifest.read_text())
+    manifest = json.loads(args.manifest.read_text(encoding='utf-8'))
     cases = manifest['cases']
     if args.ids:
         wanted = set(args.ids.split(','))
@@ -95,7 +95,7 @@ def run(args):
             raise ValueError(f"Source image changed: {case['id']}")
         prepared.append((case, path, image_hash))
     args.output.mkdir(parents=True, exist_ok=True)
-    reviews = json.loads(args.reviews.read_text()) if args.reviews else {}
+    reviews = json.loads(args.reviews.read_text(encoding='utf-8')) if args.reviews else {}
     if not isinstance(reviews, dict) or any(
             value is not None and (not isinstance(value, list) or any(not isinstance(claim, str) for claim in value))
             for value in reviews.values()):
@@ -114,7 +114,7 @@ def run(args):
                     key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
                     cache = args.output / 'runs' / (key + '.json')
                     if cache.exists():
-                        run_result = json.loads(cache.read_text())
+                        run_result = json.loads(cache.read_text(encoding='utf-8'))
                     else:
                         started = time.monotonic()
                         try:

@@ -9,7 +9,7 @@ import psycopg
 def seed(dsn):
     with psycopg.connect(dsn) as conn:
         conn.execute('SELECT pg_advisory_xact_lock(734103002)')
-        conn.execute(Path(__file__).with_name('demo.sql').read_text())
+        conn.execute(Path(__file__).with_name('demo.sql').read_text(encoding='utf-8'))
 
 
 def main():
