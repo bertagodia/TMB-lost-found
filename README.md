@@ -25,6 +25,8 @@ TMB-lost-found/
 La app se comunicará con la API; no accederá directamente a PostgreSQL.
 PostgreSQL sustituirá a SharePoint según la decisión comunicada por el equipo.
 La tecnología de la app y el contrato de la API están pendientes de acuerdo.
+La pestaña «Match» del prototipo WP4 solo contiene datos ficticios locales; no
+representa todavía un seguimiento compartido con el servidor.
 
 ## Empezar
 
