@@ -1,396 +1,185 @@
--- ============================================================================
--- TMB LOST & FOUND SYSTEM — COMPLETE HARDENED DATABASE SCHEMA (BACKBONE v0.1)
--- Integrates Inventory (Phase 1) + Citizen Lost Reports & Contacts (Phase 2)
--- Target Engine: PostgreSQL 14+
--- ============================================================================
+CREATE SCHEMA tmb;
+SET LOCAL search_path = tmb, pg_catalog;
 
-BEGIN;
+CREATE FUNCTION valid_colors(value text[]) RETURNS boolean
+LANGUAGE sql IMMUTABLE STRICT AS $$
+ SELECT coalesce(array_ndims(value), 1) = 1
+   AND cardinality(value) = (SELECT count(DISTINCT c) FROM unnest(value) c)
+   AND NOT EXISTS (SELECT FROM unnest(value) c WHERE c IS NULL OR btrim(c) = '')
+$$;
 
--- ----------------------------------------------------------------------------
--- 1. EXTENSIONS & HELPER FUNCTIONS
--- ----------------------------------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
--- Automatically updates updated_at timestamp on row modification
-CREATE OR REPLACE FUNCTION set_updated_at_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = clock_timestamp();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Validates that a text[] array contains no duplicate elements and no empty/null values
-CREATE OR REPLACE FUNCTION array_has_no_duplicates(arr TEXT[])
-RETURNS BOOLEAN AS $$
-BEGIN
-    IF arr IS NULL OR array_length(arr, 1) IS NULL THEN
-        RETURN TRUE;
-    END IF;
-    RETURN (
-        SELECT COUNT(*) = COUNT(DISTINCT elem) AND COUNT(*) FILTER (WHERE elem IS NULL OR btrim(elem) = '') = 0
-        FROM unnest(arr) AS elem
-    );
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
--- ----------------------------------------------------------------------------
--- 2. TABLE: found_objects (Physical Inventory & Operational Context)
--- ----------------------------------------------------------------------------
 CREATE TABLE found_objects (
-    id                   TEXT PRIMARY KEY,
-    status               TEXT NOT NULL DEFAULT 'registered',
-    created_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    updated_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    client_registered_at TIMESTAMPTZ,
-    registered_line      TEXT,
-    registered_vehicle   TEXT,
-    vehicle_source       TEXT,
-    found_date           DATE,
-    date_quality         TEXT NOT NULL,
-    found_line           TEXT,
-    found_direction      TEXT,
-    found_location       TEXT,
-    received_at          TIMESTAMPTZ,
-    original_details     JSONB NOT NULL DEFAULT '{}'::jsonb,
-    submission_hash      TEXT NOT NULL,
-
-    CONSTRAINT chk_found_objects_id_valid
-        CHECK (btrim(id) <> '' AND char_length(id) <= 160),
-    CONSTRAINT chk_found_objects_submission_hash_non_empty
-        CHECK (btrim(submission_hash) <> ''),
-    CONSTRAINT chk_found_objects_status
-        CHECK (status IN ('registered', 'returned', 'archived')),
-    CONSTRAINT chk_found_objects_vehicle_source
-        CHECK (vehicle_source IS NULL OR vehicle_source IN ('manual', 'nfc')),
-    CONSTRAINT chk_found_objects_date_quality
-        CHECK (date_quality IN ('unknown', 'approximate', 'confirmed')),
-   
-    -- Business rule: found_date must be NULL if and only if date_quality is 'unknown'
-    CONSTRAINT chk_found_objects_date_consistency CHECK (
-        (date_quality = 'unknown' AND found_date IS NULL) OR
-        (date_quality <> 'unknown' AND found_date IS NOT NULL)
-    ),
-    CONSTRAINT chk_found_objects_original_details_object
-        CHECK (jsonb_typeof(original_details) = 'object')
+ id text PRIMARY KEY CHECK (length(btrim(id)) BETWEEN 1 AND 160),
+ status text NOT NULL DEFAULT 'registered' CHECK (status IN ('registered','returned','archived')),
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ client_registered_at timestamptz,
+ registered_line text, registered_vehicle text,
+ vehicle_source text CHECK (vehicle_source IN ('manual','nfc')),
+ found_date date,
+ date_quality text NOT NULL DEFAULT 'unknown' CHECK (date_quality IN ('unknown','approximate','confirmed')),
+ found_line text CHECK (found_line IS NULL OR btrim(found_line) <> ''),
+ found_direction text CHECK (found_direction IS NULL OR btrim(found_direction) <> ''),
+ found_location text,
+ received_at timestamptz,
+ original_details jsonb NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(original_details) = 'object'),
+ submission_hash text NOT NULL CHECK (submission_hash ~ '^[0-9a-f]{64}$'),
+ CHECK ((found_date IS NULL) = (date_quality = 'unknown'))
 );
 
-CREATE INDEX ix_found_objects_status ON found_objects (status);
-CREATE INDEX ix_found_objects_created_at ON found_objects (created_at DESC);
-CREATE INDEX ix_found_objects_submission_hash ON found_objects (submission_hash);
-
-CREATE TRIGGER trg_found_objects_updated_at
-BEFORE UPDATE ON found_objects
-FOR EACH ROW EXECUTE FUNCTION set_updated_at_timestamp();
-
--- ----------------------------------------------------------------------------
--- 3. TABLE: lost_reports (Citizen Loss Claims - Phase 2 Contract)
--- ----------------------------------------------------------------------------
-CREATE TABLE lost_reports (
-    id                   TEXT PRIMARY KEY,
-    status               TEXT NOT NULL DEFAULT 'open',
-    created_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    updated_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    client_created_at    TIMESTAMPTZ,
-    original_description TEXT NOT NULL,
-    lost_date            DATE,
-    date_approximate     BOOLEAN NOT NULL DEFAULT false,
-    location_text        TEXT,
-    line                 TEXT,
-    direction            TEXT,
-    object_type          TEXT,
-    colors               TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
-    submission_hash      TEXT NOT NULL,
-
-    CONSTRAINT chk_lost_reports_id_valid
-        CHECK (btrim(id) <> '' AND char_length(id) <= 160),
-    CONSTRAINT chk_lost_reports_status
-        CHECK (status IN ('open', 'closed', 'cancelled')),
-    CONSTRAINT chk_lost_reports_description_non_empty
-        CHECK (btrim(original_description) <> ''),
-    CONSTRAINT chk_lost_reports_submission_hash_non_empty
-        CHECK (btrim(submission_hash) <> ''),
-    CONSTRAINT chk_lost_reports_colors_unique
-        CHECK (array_has_no_duplicates(colors))
-);
-
-CREATE INDEX ix_lost_reports_status ON lost_reports (status);
-CREATE INDEX ix_lost_reports_created_at ON lost_reports (created_at DESC);
-CREATE INDEX ix_lost_reports_submission_hash ON lost_reports (submission_hash);
-
-CREATE TRIGGER trg_lost_reports_updated_at
-BEFORE UPDATE ON lost_reports
-FOR EACH ROW EXECUTE FUNCTION set_updated_at_timestamp();
-
--- ----------------------------------------------------------------------------
--- 4. TABLE: report_contacts (GDPR-Isolated Citizen Contact Data)
--- ----------------------------------------------------------------------------
-CREATE TABLE report_contacts (
-    report_id   TEXT PRIMARY KEY REFERENCES lost_reports (id) ON DELETE RESTRICT,
-    name        TEXT,
-    email       TEXT,
-    phone       TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-
-    CONSTRAINT chk_report_contacts_non_empty CHECK (
-        COALESCE(btrim(name), '') <> '' OR
-        COALESCE(btrim(email), '') <> '' OR
-        COALESCE(btrim(phone), '') <> ''
-    )
-);
-
-CREATE TRIGGER trg_report_contacts_updated_at
-BEFORE UPDATE ON report_contacts
-FOR EACH ROW EXECUTE FUNCTION set_updated_at_timestamp();
-
--- ----------------------------------------------------------------------------
--- 5. TABLE: photos (Filesystem References & Dual Ownership Support)
--- ----------------------------------------------------------------------------
 CREATE TABLE photos (
-    id                 TEXT PRIMARY KEY,
-    object_id          TEXT REFERENCES found_objects (id) ON DELETE RESTRICT,
-    report_id          TEXT REFERENCES lost_reports (id) ON DELETE RESTRICT,
-    position           INTEGER NOT NULL,
-    storage_key        TEXT NOT NULL UNIQUE,
-    original_filename  TEXT,
-    media_type         TEXT NOT NULL,
-    image_sha256       TEXT NOT NULL,
-    size_bytes         BIGINT NOT NULL,
-    width              INTEGER NOT NULL,
-    height             INTEGER NOT NULL,
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    client_selected_at TIMESTAMPTZ,
-
-    CONSTRAINT chk_photos_id_valid
-        CHECK (btrim(id) <> ''),
-    CONSTRAINT chk_photos_storage_key_valid
-        CHECK (btrim(storage_key) <> ''),
-    CONSTRAINT chk_photos_media_type_valid
-        CHECK (btrim(media_type) <> ''),
-    CONSTRAINT chk_photos_sha256_valid
-        CHECK (btrim(image_sha256) <> ''),
-    CONSTRAINT chk_photos_position_positive
-        CHECK (position > 0),
-    CONSTRAINT chk_photos_dimensions_positive
-        CHECK (width > 0 AND height > 0 AND size_bytes > 0),
-   
-    -- A photo belongs to either a found object OR a lost report, never both.
-    CONSTRAINT chk_photos_exclusive_owner CHECK (
-        NOT (object_id IS NOT NULL AND report_id IS NOT NULL)
-    )
+ id text PRIMARY KEY CHECK (btrim(id) <> ''),
+ object_id text REFERENCES found_objects(id),
+ position integer NOT NULL CHECK (position > 0),
+ storage_key text NOT NULL UNIQUE CHECK (btrim(storage_key) <> ''),
+ original_filename text,
+ media_type text NOT NULL CHECK (media_type IN ('image/jpeg','image/png','image/webp')),
+ image_sha256 text NOT NULL CHECK (image_sha256 ~ '^[0-9a-f]{64}$'),
+ size_bytes bigint NOT NULL CHECK (size_bytes > 0),
+ width integer NOT NULL CHECK (width > 0),
+ height integer NOT NULL CHECK (height > 0),
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ client_selected_at timestamptz,
+ UNIQUE (object_id, position),
+ UNIQUE (id, image_sha256)
 );
+CREATE INDEX photos_hash_idx ON photos(image_sha256);
 
--- Unique position per owner (position = 1 is the primary photo)
-CREATE UNIQUE INDEX uq_photos_object_position
-    ON photos (object_id, position)
-    WHERE object_id IS NOT NULL;
-
-CREATE UNIQUE INDEX uq_photos_report_position
-    ON photos (report_id, position)
-    WHERE report_id IS NOT NULL;
-
-CREATE INDEX ix_photos_object_id ON photos (object_id);
-CREATE INDEX ix_photos_report_id ON photos (report_id);
-CREATE INDEX ix_photos_image_sha256 ON photos (image_sha256);
-
--- Prevent photo owner reassignment once attached
-CREATE OR REPLACE FUNCTION prevent_photo_owner_reassignment()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF OLD.object_id IS NOT NULL AND NEW.object_id IS DISTINCT FROM OLD.object_id THEN
-        RAISE EXCEPTION 'Photo % is already assigned to object % and cannot be reassigned.', OLD.id, OLD.object_id;
-    END IF;
-    IF OLD.report_id IS NOT NULL AND NEW.report_id IS DISTINCT FROM OLD.report_id THEN
-        RAISE EXCEPTION 'Photo % is already assigned to report % and cannot be reassigned.', OLD.id, OLD.report_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_photos_prevent_reassignment
-BEFORE UPDATE ON photos
-FOR EACH ROW EXECUTE FUNCTION prevent_photo_owner_reassignment();
-
--- ----------------------------------------------------------------------------
--- 6. TABLE: extraction_runs (Local Ollama Vision Inference Audit Log)
--- ----------------------------------------------------------------------------
 CREATE TABLE extraction_runs (
-    id                    TEXT PRIMARY KEY,
-    photo_id              TEXT NOT NULL REFERENCES photos (id) ON DELETE RESTRICT,
-    cache_key             TEXT,
-    source                TEXT NOT NULL,
-    status                TEXT NOT NULL,
-    model_name            TEXT,
-    model_digest          TEXT,
-    prompt_version        TEXT,
-    preprocessing_version TEXT,
-    input_image_sha256    TEXT NOT NULL,
-    input_config          JSONB NOT NULL DEFAULT '{}'::jsonb,
-    raw_output            JSONB,
-    proposed_fields       JSONB,
-    quality               TEXT,
-    sensitive_content     BOOLEAN,
-    warnings              JSONB NOT NULL DEFAULT '[]'::jsonb,
-    timings               JSONB NOT NULL DEFAULT '{}'::jsonb,
-    error_message         TEXT,
-    created_at            TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    completed_at          TIMESTAMPTZ,
-
-    CONSTRAINT chk_extraction_runs_id_valid
-        CHECK (btrim(id) <> ''),
-    CONSTRAINT chk_extraction_runs_source
-        CHECK (source IN ('operator', 'claimant')),
-    CONSTRAINT chk_extraction_runs_status
-        CHECK (status IN ('pending', 'succeeded', 'failed')),
-    CONSTRAINT chk_extraction_runs_quality
-        CHECK (quality IS NULL OR quality IN ('usable', 'insufficient', 'ambiguous')),
-    CONSTRAINT chk_extraction_runs_json_types CHECK (
-        jsonb_typeof(input_config) = 'object' AND
-        jsonb_typeof(warnings) = 'array' AND
-        jsonb_typeof(timings) = 'object'
-    ),
-    CONSTRAINT chk_extraction_runs_completed_metadata CHECK (
-        status <> 'succeeded' OR (
-            btrim(COALESCE(model_name, '')) <> '' AND
-            btrim(COALESCE(model_digest, '')) <> '' AND
-            btrim(COALESCE(prompt_version, '')) <> '' AND
-            btrim(COALESCE(preprocessing_version, '')) <> '' AND
-            completed_at IS NOT NULL
-        )
-    )
+ id text PRIMARY KEY CHECK (btrim(id) <> ''),
+ photo_id text NOT NULL,
+ input_image_sha256 text NOT NULL,
+ FOREIGN KEY (photo_id, input_image_sha256) REFERENCES photos(id, image_sha256),
+ cache_key text,
+ source text NOT NULL DEFAULT 'operator' CHECK (source IN ('operator','claimant')),
+ status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','succeeded','failed')),
+ model_name text NOT NULL CHECK (btrim(model_name) <> ''),
+ model_digest text,
+ prompt_version text,
+ preprocessing_version text,
+ input_config jsonb NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(input_config) = 'object'),
+ raw_output jsonb CHECK (jsonb_typeof(raw_output) = 'object'),
+ proposed_fields jsonb CHECK (jsonb_typeof(proposed_fields) = 'object'),
+ quality text CHECK (quality IN ('usable','insufficient','ambiguous')),
+ sensitive_content boolean,
+ warnings jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(warnings) = 'array'),
+ timings jsonb NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(timings) = 'object'),
+ error_message text,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ completed_at timestamptz,
+ CHECK ((status = 'pending') = (completed_at IS NULL)),
+ CHECK (completed_at IS NULL OR completed_at >= created_at),
+ CHECK (status <> 'failed' OR coalesce(length(btrim(error_message)),0) > 0),
+ CHECK (status <> 'succeeded' OR (
+   raw_output IS NOT NULL AND proposed_fields IS NOT NULL AND quality IS NOT NULL
+   AND sensitive_content IS NOT NULL AND error_message IS NULL
+   AND coalesce(length(btrim(model_digest)),0) > 0
+   AND coalesce(length(btrim(prompt_version)),0) > 0
+   AND coalesce(length(btrim(preprocessing_version)),0) > 0))
 );
+CREATE INDEX extraction_photo_idx ON extraction_runs(photo_id);
+CREATE INDEX extraction_cache_idx ON extraction_runs(cache_key);
 
-CREATE INDEX ix_extraction_runs_photo_id ON extraction_runs (photo_id);
-CREATE INDEX ix_extraction_runs_cache_key ON extraction_runs (cache_key);
-
--- ----------------------------------------------------------------------------
--- 7. TABLE: object_reviews (Human-in-the-Loop Decisions Feeding Search)
--- ----------------------------------------------------------------------------
 CREATE TABLE object_reviews (
-    id             TEXT PRIMARY KEY,
-    object_id      TEXT NOT NULL REFERENCES found_objects (id) ON DELETE RESTRICT,
-    revision       INTEGER NOT NULL,
-    status         TEXT NOT NULL,
-    source         TEXT NOT NULL,
-    extraction_id  TEXT REFERENCES extraction_runs (id) ON DELETE RESTRICT,
-    object_type    TEXT,
-    material       TEXT,
-    colors         TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
-    description    TEXT NOT NULL DEFAULT '',
-    search_text    TEXT NOT NULL DEFAULT '',
-    reviewed_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-    reviewer_ref   TEXT,
-    review_seconds NUMERIC,
-
-    CONSTRAINT chk_object_reviews_id_valid
-        CHECK (btrim(id) <> ''),
-    CONSTRAINT chk_object_reviews_revision_positive
-        CHECK (revision > 0),
-    CONSTRAINT chk_object_reviews_status
-        CHECK (status IN ('approved', 'rejected')),
-    CONSTRAINT chk_object_reviews_source
-        CHECK (source IN ('manual', 'extraction')),
-    CONSTRAINT chk_object_reviews_review_seconds
-        CHECK (review_seconds IS NULL OR review_seconds >= 0),
-    CONSTRAINT chk_object_reviews_colors_unique
-        CHECK (array_has_no_duplicates(colors)),
-    CONSTRAINT chk_object_reviews_description_length
-        CHECK (char_length(description) <= 250),
-   
-    CONSTRAINT uq_object_reviews_object_revision
-        UNIQUE (object_id, revision),
-
-    CONSTRAINT chk_object_reviews_extraction_origin CHECK (
-        (source = 'extraction' AND extraction_id IS NOT NULL) OR
-        (source = 'manual' AND extraction_id IS NULL)
-    ),
-
-    CONSTRAINT chk_object_reviews_approved_search_text CHECK (
-        status <> 'approved' OR btrim(search_text) <> ''
-    )
+ id text PRIMARY KEY CHECK (btrim(id) <> ''),
+ object_id text NOT NULL REFERENCES found_objects(id),
+ revision integer NOT NULL CHECK (revision > 0),
+ status text NOT NULL CHECK (status IN ('approved','rejected')),
+ source text NOT NULL CHECK (source IN ('manual','extraction')),
+ extraction_id text REFERENCES extraction_runs(id),
+ object_type text, material text,
+ colors text[] NOT NULL DEFAULT '{}' CHECK (valid_colors(colors)),
+ description text NOT NULL DEFAULT '' CHECK (length(description) <= 250),
+ search_text text NOT NULL DEFAULT '',
+ reviewed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ reviewer_ref text,
+ review_seconds numeric CHECK (review_seconds >= 0 AND review_seconds <> 'NaN'::numeric
+   AND review_seconds <> 'Infinity'::numeric),
+ UNIQUE (object_id, revision),
+ CHECK ((source = 'extraction') = (extraction_id IS NOT NULL)),
+ CHECK (status <> 'approved' OR btrim(search_text) <> '')
 );
+CREATE INDEX review_extraction_idx ON object_reviews(extraction_id) WHERE extraction_id IS NOT NULL;
 
-CREATE INDEX ix_object_reviews_object_revision_desc
-    ON object_reviews (object_id, revision DESC);
-
--- Acceptance Test #8: Ensure extraction belongs to a photo of the same object
-CREATE OR REPLACE FUNCTION enforce_review_extraction_integrity()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_photo_object_id TEXT;
-    v_photo_sha256    TEXT;
-    v_input_sha256    TEXT;
+CREATE FUNCTION protect_object() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    IF NEW.source = 'extraction' AND NEW.extraction_id IS NOT NULL THEN
-        SELECT p.object_id, p.image_sha256, er.input_image_sha256
-          INTO v_photo_object_id, v_photo_sha256, v_input_sha256
-          FROM extraction_runs er
-          JOIN photos p ON p.id = er.photo_id
-         WHERE er.id = NEW.extraction_id;
+ IF ROW(NEW.id, NEW.original_details, NEW.submission_hash, NEW.created_at)
+    IS DISTINCT FROM ROW(OLD.id, OLD.original_details, OLD.submission_hash, OLD.created_at) THEN
+   RAISE EXCEPTION 'Original submission is immutable' USING ERRCODE = '23514';
+ END IF;
+ NEW.updated_at := clock_timestamp();
+ RETURN NEW;
+END $$;
+CREATE TRIGGER protect_object BEFORE UPDATE ON found_objects FOR EACH ROW EXECUTE FUNCTION protect_object();
 
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'Extraction run % does not exist.', NEW.extraction_id;
-        END IF;
-
-        IF v_photo_object_id IS DISTINCT FROM NEW.object_id THEN
-            RAISE EXCEPTION 'Integrity violation (Test #8): Extraction % belongs to photo of object %, not %.',
-                NEW.extraction_id, COALESCE(v_photo_object_id, 'NULL/unassigned'), NEW.object_id;
-        END IF;
-
-        IF v_photo_sha256 IS DISTINCT FROM v_input_sha256 THEN
-            RAISE EXCEPTION 'Integrity violation: Extraction input_image_sha256 does not match photo image_sha256.';
-        END IF;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_object_reviews_check_extraction
-BEFORE INSERT OR UPDATE ON object_reviews
-FOR EACH ROW EXECUTE FUNCTION enforce_review_extraction_integrity();
-
--- Automatically bump found_objects.updated_at when a new review is added
-CREATE OR REPLACE FUNCTION touch_found_object_on_review()
-RETURNS TRIGGER AS $$
+CREATE FUNCTION protect_photo() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    UPDATE found_objects
-       SET updated_at = clock_timestamp()
-     WHERE id = NEW.object_id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+ IF (to_jsonb(NEW) - 'object_id') IS DISTINCT FROM (to_jsonb(OLD) - 'object_id')
+    OR (OLD.object_id IS NOT NULL AND NEW.object_id IS DISTINCT FROM OLD.object_id) THEN
+   RAISE EXCEPTION 'Photo metadata and assigned owner are immutable' USING ERRCODE = '23514';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER protect_photo BEFORE UPDATE ON photos FOR EACH ROW EXECUTE FUNCTION protect_photo();
 
-CREATE TRIGGER trg_object_reviews_touch_parent
-AFTER INSERT OR UPDATE ON object_reviews
-FOR EACH ROW EXECUTE FUNCTION touch_found_object_on_review();
+CREATE FUNCTION protect_extraction() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF OLD.status <> 'pending' OR ROW(NEW.id, NEW.photo_id, NEW.input_image_sha256,
+      NEW.source, NEW.cache_key, NEW.input_config, NEW.created_at)
+    IS DISTINCT FROM ROW(OLD.id, OLD.photo_id, OLD.input_image_sha256,
+      OLD.source, OLD.cache_key, OLD.input_config, OLD.created_at) THEN
+   RAISE EXCEPTION 'Extraction provenance or completed result is immutable' USING ERRCODE = '23514';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER protect_extraction BEFORE UPDATE ON extraction_runs FOR EACH ROW EXECUTE FUNCTION protect_extraction();
 
--- ----------------------------------------------------------------------------
--- 8. VIEW: searchable_objects (BM25 Search Feed Contract for WP5)
--- ----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW searchable_objects AS
-WITH latest_reviews AS (
-    SELECT DISTINCT ON (object_id)
-        id AS review_id,
-        object_id,
-        revision,
-        status AS review_status,
-        search_text
-    FROM object_reviews
-    ORDER BY object_id, revision DESC
-)
-SELECT
-    fo.id,
-    lr.search_text AS description,
-    fo.found_date,
-    fo.date_quality,
-    fo.found_line,
-    fo.found_direction,
-    lr.review_id,
-    lr.revision
-FROM found_objects fo
-JOIN latest_reviews lr ON fo.id = lr.object_id
-WHERE fo.status = 'registered'
-  AND lr.review_status = 'approved';
+CREATE FUNCTION append_review() RETURNS trigger LANGUAGE plpgsql
+SET search_path = tmb, pg_catalog AS $$
+DECLARE next_revision integer;
+BEGIN
+ -- Serialize review allocation, including writes from clients other than Python.
+ PERFORM 1 FROM found_objects WHERE id = NEW.object_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Object not found' USING ERRCODE = '23503'; END IF;
+ SELECT coalesce(max(revision),0) + 1 INTO next_revision FROM object_reviews WHERE object_id = NEW.object_id;
+ IF NEW.revision IS NOT NULL AND NEW.revision <> next_revision THEN
+   RAISE EXCEPTION 'Review revision must be the next version' USING ERRCODE = '23514';
+ END IF;
+ NEW.revision := next_revision;
+ NEW.reviewed_at := clock_timestamp();
+ IF NEW.extraction_id IS NOT NULL AND NOT EXISTS (
+   SELECT FROM extraction_runs e JOIN photos p ON p.id = e.photo_id
+   WHERE e.id = NEW.extraction_id AND p.object_id = NEW.object_id AND e.status = 'succeeded'
+ ) THEN
+   RAISE EXCEPTION 'Review extraction must be completed and belong to this object' USING ERRCODE = '23514';
+ END IF;
+ UPDATE found_objects SET updated_at = clock_timestamp() WHERE id = NEW.object_id;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER append_review BEFORE INSERT ON object_reviews FOR EACH ROW EXECUTE FUNCTION append_review();
 
-COMMIT;
+CREATE FUNCTION forbid_history_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ RAISE EXCEPTION 'History is append-only; archive objects or append a review' USING ERRCODE = '23514';
+END $$;
+CREATE TRIGGER immutable_review BEFORE UPDATE OR DELETE ON object_reviews FOR EACH ROW EXECUTE FUNCTION forbid_history_change();
+CREATE TRIGGER keep_extraction BEFORE DELETE ON extraction_runs FOR EACH ROW EXECUTE FUNCTION forbid_history_change();
+CREATE TRIGGER keep_object BEFORE DELETE ON found_objects FOR EACH ROW EXECUTE FUNCTION forbid_history_change();
+
+CREATE VIEW searchable_objects AS
+ SELECT o.id, r.search_text AS description, o.found_date, o.date_quality,
+        o.found_line, o.found_direction, r.id AS review_id, r.revision
+ FROM found_objects o
+ JOIN LATERAL (
+   SELECT * FROM object_reviews WHERE object_id = o.id ORDER BY revision DESC LIMIT 1
+ ) r ON true
+ WHERE o.status = 'registered' AND r.status = 'approved';
+
+CREATE FUNCTION protect_photo_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF OLD.object_id IS NOT NULL THEN
+   RAISE EXCEPTION 'An attached photo is part of the original submission' USING ERRCODE = '23514';
+ END IF;
+ RETURN OLD;
+END $$;
+CREATE TRIGGER keep_attached_photo BEFORE DELETE ON photos FOR EACH ROW EXECUTE FUNCTION protect_photo_delete();

@@ -23,6 +23,7 @@ from search.storage import write_json
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_REQUEST = 58 * 1024 * 1024
+
 LOCATION_ASSIGNMENTS = json.loads((ROOT / 'client' / 'location-assignment-data.json').read_text(encoding='utf-8'))
 
 
@@ -101,7 +102,6 @@ class Application:
         object_id = record.get('id')
         if not isinstance(object_id, str) or not object_id.strip() or len(object_id) > 160:
             raise ValueError('ID del registre invàlid.')
-        origin_metadata(record)
         if record.get('extractionId') and record.get('reviewed') is not True:
             raise ValueError('Confirma la revisió dels camps extrets abans de desar.')
         details = dict(record['details'])
@@ -180,11 +180,9 @@ class Handler(BaseHTTPRequestHandler):
             except psycopg.Error:
                 return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
+                 **{('/'+name):name for name in ('location-assignment.js','location-assignment.css','match.js','match.css','location-assignment-data.json')},
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
-                 '/form-options.json': 'form-options.json',
-                 '/location-assignment.js': 'location-assignment.js',
-                 '/location-assignment-data.json': 'location-assignment-data.json',
-                 '/location-assignment.css': 'location-assignment.css'}
+                 '/form-options.json': 'form-options.json', '/transit-options.json':'transit-options.json'}
         if path not in files:
             return self.respond(404, {'error': 'No trobat.'})
         file = ROOT / 'client' / files[path]
@@ -210,7 +208,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.server.app.extract(payload))
             if path == '/lost-found':
                 return self.respond(200, self.server.app.submit(payload))
-            operations = {'/api/inventory':'inventory','/api/review':'review',
+            operations = {'/api/matches':'matches','/api/inventory':'inventory','/api/review':'review',
                 '/api/status':'status','/api/search':'search','/api/lost-reports':'lost_report'}
             if path in operations and hasattr(self.server.app,operations[path]):
                 return self.respond(200,getattr(self.server.app,operations[path])(payload))

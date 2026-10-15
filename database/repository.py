@@ -20,9 +20,11 @@ METADATA = {'client_registered_at', 'registered_line', 'registered_vehicle', 've
 
 
 def reviewed_fields(details):
-    if set(details) != {'colors', 'objectType', 'material', 'description'}:
+    if set(details) - {'colorOrderKnown'} != {'colors', 'objectType', 'material', 'description'}:
         raise ValueError('Expected colors, objectType, material and description')
     colors = details['colors']
+    if type(details.get('colorOrderKnown', False)) is not bool:
+        raise ValueError('colorOrderKnown must be boolean')
     if not isinstance(colors, list) or any(not isinstance(c, str) or not c.strip() for c in colors):
         raise ValueError('Colors must be a list of nonempty strings')
     if not isinstance(details['description'], str) or len(details['description']) > 250:
@@ -40,11 +42,12 @@ def _review(conn, object_id, details, *, status='approved', extraction_id=None,
                                       fields['material'], fields['description'].strip()) if part)
     return conn.execute('''INSERT INTO tmb.object_reviews
         (id, object_id, status, source, extraction_id, object_type, material,
-         colors, description, search_text, reviewer_ref, review_seconds)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *''',
+         colors, description, search_text, reviewer_ref, review_seconds, color_order_known)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *''',
         (str(uuid4()), object_id, status, 'extraction' if extraction_id else 'manual', extraction_id,
          fields['objectType'], fields['material'], fields['colors'], fields['description'],
-         text if status == 'approved' else '', reviewer_ref, review_seconds)).fetchone()
+         text if status == 'approved' else '', reviewer_ref, review_seconds,
+         fields.get('colorOrderKnown', False))).fetchone()
 
 
 class Repository:
@@ -115,6 +118,9 @@ class Repository:
         # Omitted and explicit null optional metadata have the same normalized meaning.
         metadata = {key: metadata.get(key) for key in sorted(METADATA)}
         metadata['date_quality'] = metadata['date_quality'] or 'unknown'
+        # Keep legacy submissions byte-equivalent when they had no origin fields.
+        metadata = {key:value for key,value in metadata.items()
+                    if not key.startswith('origin_') or value is not None}
         with (nullcontext(connection) if connection is not None else self.connect()) as conn:
             # Consistent lock order avoids photo-adoption deadlocks across objects.
             photos = conn.execute('SELECT * FROM tmb.photos WHERE id = ANY(%s) ORDER BY id FOR UPDATE',

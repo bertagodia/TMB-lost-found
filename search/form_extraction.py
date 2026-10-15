@@ -28,6 +28,7 @@ ObservedMaterial = Enum('ObservedMaterial', {v: v for v in TAXONOMY['materials']
 class FormFields(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     colors: list[Color] = Field(max_length=len(OPTIONS['colors']))
+    colorOrderKnown: bool = False
     objectType: ObjectType | None
     material: Material | None
     description: str = Field(max_length=250)
@@ -61,7 +62,10 @@ FORM_PROMPT = """Look at the main found object in this photo. Return only the re
 First identify the WHOLE object with a plain English object_name, without a category list.
 Then describe up to three concrete visible features in short English phrases.
 Each phrase must describe this particular object's appearance, not a generic heading.
-Then report up to four main colors of that object and its apparent main body material.
+Then report up to four colors ordered by the visible area they cover on the object:
+largest coverage first (dominant body color), then smaller areas, then small accents.
+Never alphabetize colors. A small black cap must follow a large orange bottle body.
+This is a relative visual estimate, not a pixel measurement. Report its apparent main body material.
 Ignore the background, furniture, hands and secondary objects. Do not list every color option.
 Use null for an uncertain object name or material, [] for uncertain colors or features.
 A cap or trim can have a different material from the main body. Never guess hidden contents,
@@ -130,7 +134,7 @@ def map_recognition(draft):
     if len(features) != len(draft.visible_features):
         warnings.append('Generic feature headings were omitted; review the description.')
     description = '. '.join(part for part in [name, *features] if part)[:250]
-    fields = dict(colors=colors, objectType=category,
+    fields = dict(colors=colors, colorOrderKnown=bool(colors), objectType=category,
                   material=TAXONOMY['materials'].get(material), description=description)
     return FormFields.model_validate_json(json.dumps(fields)).model_dump(mode='json'), warnings
 

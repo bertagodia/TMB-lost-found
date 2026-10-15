@@ -1,5 +1,7 @@
 # Functional local prototype — version 0.1
 
+Current feature update: [ranked colors, finding line/date and extraction progress](docs/RANKED_SEARCH.md).
+
 First installation? Follow [SETUP.md](SETUP.md) for step-by-step Windows and
 macOS/Linux instructions, expected results and troubleshooting.
 
@@ -11,11 +13,11 @@ This is a local development application, not a public TMB service.
 
 | Flow | Implemented behavior |
 |---|---|
-| Register a found object | Select the origin (metro station or depot); the destination central station is assigned automatically. Enter vehicle/line, upload two views, extract the first photo or choose manual entry, review multiple colors/type/material/description, save. |
+| Register a found object | Enter vehicle/line, upload two views, extract the first photo or choose manual entry, review multiple colors/type/material/description, save. |
 | Image extraction | Local `qwen3-vl:2b-instruct`; JPEG including MPO, PNG and static WebP; original bytes retained. Drafts require human review. Identical image/model/prompt combinations reuse cached model output. |
-| Durable storage | Original images live in the server data directory; PostgreSQL stores references, hashes, extraction attempts, origin and assigned destination, original submissions and append-only reviews. |
+| Durable storage | Original images live in the server data directory; PostgreSQL stores references, hashes, extraction attempts, original submissions and append-only reviews. |
 | Server inventory | “Inventari del servidor” lists up to 200 recent objects, including records created from another browser. Correct fields, reject a review, mark returned, or reactivate. |
-| Citizen search | “Soc usuari” searches current approved, registered objects using text, optional exact type and selected colors. Results include a photo, reviewed fields and reference ID. |
+| Citizen search | “Soc usuari” searches current approved, registered objects using text, optional exact type, ranked colors and finding line/date evidence. Results include a photo, reviewed fields and reference ID. |
 | Loss report | “Desar i cercar” stores the declaration and optional contact information in separate tables and returns candidates. “Cercar sense desar” runs a query without storing a declaration. |
 | Reference image | An optional citizen image is stored privately as supporting material. It is **not** used to rank candidates in this version. |
 | Retries | Duplicate registration/report IDs with the same request are idempotent. Different content conflicts. Operator network failures can queue the original request locally, subject to browser capacity. |
@@ -28,13 +30,16 @@ object type/colors. There is no general multilingual/semantic translation layer.
 
 Location and loss date are saved with a declaration. Free-text location is not
 silently interpreted as a confirmed line, and registration time/vehicle are not
-invented finding metadata. Unknown finding metadata does not exclude candidates.
-Selected colors require all selected colors to be present on the reviewed object.
+invented finding metadata. Unknown finding metadata excludes candidates when that criterion is supplied.
+Strict search requires every selected color in the first three ranked colors,
+an exact selected line/transport match and a finding date within ±7 days of a
+supplied loss date. Missing required metadata excludes a record. Blank criteria
+do not filter. Surviving candidates are ranked by text and supporting evidence.
 A result is a candidate, not verified ownership or an authorized return.
 
 ## Quick test on the running instance
 
-1. Open **Operaris TMB**, select an origin station or depot, confirm its automatically assigned destination, enter `TEST` / `001`, and upload the two bottle photos.
+1. Open **Operaris TMB**, choose Bus / H12, enter vehicle `001` and select an origin station or depot, and upload the two bottle photos.
 2. Enter **Detalls**. Wait for extraction or click **Omplir manualment**. A cold
    model can take longer; the successful live bottle test took about 37 seconds.
 3. Correct all fields, mark the review checkbox, review the summary and save.
@@ -81,7 +86,7 @@ because its local request token changes.
 
 ## This machine's running configuration
 
-- Code checkout: `/tmp/tmb-prototype`, branch `prototype-integration`.
+- Code checkout: `/home/tomaspr/Documents/UPC/4A/PAE_lost-n-found`, branch `main`.
 - PostgreSQL container: `tmb-prototype-db`, localhost port `55432`, named persistent
   volume `tmb-prototype-pgdata`. This is separate from the disposable test container.
 - Images/cache: `/home/tomaspr/Documents/UPC/4A/PAE_lost-n-found/artifacts/prototype/storage`.
@@ -118,7 +123,7 @@ node --check client/app.js
 ```
 
 The PostgreSQL tests create their own uniquely named databases and remove them
-at the end. The 50 Python tests passed, covering actual PostgreSQL, file storage,
+at the end. The 60 Python tests passed, covering actual PostgreSQL, file storage,
 retry concurrency, provenance, cache reuse, contact separation and search updates.
 Backend DB tests are explicitly skipped if `TEST_DATABASE_URL` is missing.
 
@@ -138,7 +143,7 @@ storage, stable retry IDs and compact local history; its test record is archived
 | `POST /api/inventory` | `{}` → recent operator inventory (up to 200). |
 | `POST /api/review` | `{id,revision,reviewed:true,status,details}` → append correction/rejection; stale revision gets 409. |
 | `POST /api/status` | `{id,status}` → registered, returned or archived. |
-| `POST /api/search` | `{description,filters:{objectType,colors},lostDate}` → current candidates. |
+| `POST /api/search` | `{description,filters:{objectType,colors},transport,line,lostDate,dateApproximate}` → current candidates. |
 | `POST /api/lost-reports` | Current citizen payload → stored report plus candidates. |
 | `GET /api/photos/<id>` | Prepared JPEG preview of a currently searchable object's photo; never a staged or citizen-reference image. |
 
@@ -162,3 +167,10 @@ for the next iteration's line priority, date format and citizen search refinemen
   for audit. Automated retention/cleanup and crash-recovery reconciliation remain.
 - No notifications, contact-management UI, claim verification, custody workflow,
   SharePoint import, embeddings or image-to-image search.
+
+## Integrated operations
+
+The location-assignment and Match views now use the real database. See
+[Main integration](docs/MAIN_INTEGRATION.md) for the workflow, upgrade mapping
+and validation. Assignment does not mark an object as shipped. Match links are
+manual and persist across browsers; returned objects leave the search index.

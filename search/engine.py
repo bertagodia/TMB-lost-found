@@ -46,8 +46,8 @@ class SearchEngine:
 
     def search(self, query: SearchQuery, *, policy='soft', window_days=2,
                limit=5, min_text_score=0.0) -> SearchResult:
-        if policy not in ('soft', 'strict'):
-            raise ValueError('policy debe ser soft o strict')
+        if policy not in ('soft', 'strict', 'ranked', 'ranked_strict'):
+            raise ValueError('Unknown search policy')
         if type(window_days) is not int or not 0 <= window_days <= 365:
             raise ValueError('window_days debe ser un entero entre 0 y 365')
         if type(limit) is not int or not 1 <= limit <= 100:
@@ -60,6 +60,15 @@ class SearchEngine:
             delta = (obj.found_date - query.lost_date).days if obj.found_date and query.lost_date else None
             line_match = (normalize(obj.found_line) == normalize(query.line)
                           if obj.found_line and query.line else None)
+            if policy == 'ranked_strict':
+                wanted = {normalize(c) for c in query.colors}
+                top_colors = {normalize(c) for c in obj.colors[:3]}
+                if ((query.line and line_match is not True)
+                    or (query.transport and obj.found_transport != query.transport)
+                    or (query.lost_date and (delta is None or abs(delta) > 7))
+                    or (wanted and (not obj.color_order_known or not wanted.issubset(top_colors)))):
+                    excluded.append(obj.id)
+                    continue
             if policy == 'strict' and (line_match is False or (delta is not None and abs(delta) > window_days)):
                 excluded.append(obj.id)
                 continue
@@ -79,7 +88,36 @@ class SearchEngine:
             if obj.found_direction and query.direction and normalize(obj.found_direction) == normalize(query.direction):
                 metadata_score += 0.25
                 signals.append('Sentido coincidente')
-            candidates.append(Candidate(obj.id, score, metadata_score, tuple(signals)))
+            rank_score = score
+            if policy in ('ranked', 'ranked_strict'):
+                # Bound lexical relevance so metadata can meaningfully rerank matches.
+                # No metadata can create a candidate without positive text overlap.
+                metadata_score = 0.0
+                if query.transport and obj.found_transport:
+                    metadata_score += 0.15 if query.transport == obj.found_transport else -0.15
+                    if query.transport != obj.found_transport:
+                        line_match = False if query.line and obj.found_line else None
+                if query.line:
+                    metadata_score += 0.9 if line_match else (-0.2 if line_match is False else 0)
+                    if line_match is None:
+                        signals.append('Línea de hallazgo desconocida')
+                    elif line_match is False:
+                        signals.append('Otra línea de hallazgo')
+                if delta is not None:
+                    precision = 0.5 if query.date_approximate or obj.date_quality == 'approximate' else 1.0
+                    # Objects can be found days after loss; earlier confirmed finds are less plausible.
+                    metadata_score += precision * (0.5 / (1 + delta / 7) if delta >= 0 else -0.5)
+                elif query.lost_date:
+                    signals.append('Fecha de hallazgo desconocida')
+                if query.colors and obj.colors:
+                    wanted = {normalize(c) for c in query.colors}
+                    weights = [(1 / (i + 1) if obj.color_order_known else 1) for i in range(len(obj.colors))]
+                    overlap = sum(w for c,w in zip(obj.colors,weights) if normalize(c) in wanted) / sum(weights)
+                    metadata_score += 0.45 * overlap
+                    if overlap:
+                        signals.append('Coincidencia de color' + (' principal' if obj.color_order_known and normalize(obj.colors[0]) in wanted else ' secundario' if obj.color_order_known else ''))
+                rank_score = score / (1 + score) + metadata_score
+            candidates.append(Candidate(obj.id, score, metadata_score, tuple(signals), rank_score))
         # Metadata breaks lexical ties; provisional weights never override text relevance.
-        candidates.sort(key=lambda item: (-item.text_score, -item.metadata_score, item.object_id))
+        candidates.sort(key=lambda item: (-item.rank_score, -item.metadata_score, item.object_id))
         return SearchResult(tuple(candidates[:limit]), tuple(eligible), tuple(excluded))

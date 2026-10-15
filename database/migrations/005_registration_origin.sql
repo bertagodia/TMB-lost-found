@@ -12,3 +12,8 @@ ALTER TABLE tmb.found_objects
              AND origin_destination IS NOT NULL AND btrim(origin_destination) <> ''
              AND char_length(origin_destination) <= 120)
         );
+
+-- Populate the new main-branch columns from origins already saved by the prototype.
+UPDATE tmb.found_objects o SET origin_kind=r.origin_kind,
+ origin_location=r.origin_location,origin_destination=r.assigned_destination
+ FROM tmb.object_routing r WHERE r.object_id=o.id AND r.origin_location IS NOT NULL;

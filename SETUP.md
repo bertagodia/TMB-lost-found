@@ -189,7 +189,7 @@ la conexión a PostgreSQL; la siguiente prueba comprueba la extracción real.
 Abre **http://127.0.0.1:8001**. No abras `client/index.html` directamente ni uses
 `python -m http.server`: esos métodos no arrancan la API.
 
-1. En **Operaris TMB**, introduce la línea `TEST` y el vehículo `001`.
+1. En **Operaris TMB**, selecciona Bus, escribe la línea `H12` y el vehículo `001`.
 2. Añade dos fotos del mismo objeto, por ejemplo una botella. Puedes usar tus
    propias imágenes JPEG, PNG o WebP estático.
 3. Continúa a **Detalls** y espera la extracción. Solo se analiza la primera foto;
@@ -207,7 +207,10 @@ Abre **http://127.0.0.1:8001**. No abras `client/index.html` directamente ni use
 
 La búsqueda actual compara palabras, no el significado general: no traduce entre
 idiomas. Los textos extraídos son ingleses y las etiquetas del formulario siguen
-siendo provisionales. Los colores y el tipo seleccionados restringen los resultados.
+siendo provisionales. Los filtros son estrictos: misma línea, fecha de hallazgo dentro de ±7 días de
+la pérdida y todos los colores seleccionados entre los tres principales del objeto.
+Los campos vacíos no filtran. Revisa el orden de colores y completa en el primer paso la línea y fecha
+reales del hallazgo, si las conoces. Consulta [los nuevos campos](docs/RANKED_SEARCH.md).
 La foto del ciudadano se guarda como referencia, pero no participa en la búsqueda.
 Consulta [las funcionalidades y límites](PROTOTYPE.md) y las
 [mejoras pendientes](docs/PROTOTYPE_IMPROVEMENTS.md).
@@ -287,3 +290,12 @@ No la publiques en Internet. Cada ordenador usa `127.0.0.1` para referirse a sí
 
 Si necesitas ayuda, comparte el comando ejecutado, el error y tu sistema operativo.
 Oculta contraseñas y datos de contacto antes de copiar mensajes o capturas.
+
+## Using the integrated Match view
+
+After registering an object and saving a citizen report, open **Match**, choose
+both records and confirm the link. You can then record its destination and mark
+it returned. These actions are saved in PostgreSQL. Origin selection in step 1
+assigns a central but does not mark the object as sent. See the step-by-step
+[operations guide](docs/MAIN_INTEGRATION.md) for details. The server automatically
+applies migrations through 005; keep existing migration files unchanged.
