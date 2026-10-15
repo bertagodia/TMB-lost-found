@@ -40,7 +40,7 @@
               <button class="origin-tab" id="depotOriginTab" type="button" role="tab" aria-selected="false" aria-controls="originPanel" data-origin-kind="depot">Cotxera</button>
             </div>
             <label><span id="originLocationLabel">Estació</span><select id="originLocation" required><option value="">Selecciona estació</option></select></label>
-            <label>Estació de destinació<input id="originDestination" type="text" readonly aria-describedby="originAssignment" /></label>
+            <input id="originDestination" type="hidden" />
             <p class="origin-assignment" id="originAssignment" role="status" aria-live="polite">L’estació de destinació es mostrarà en seleccionar l’origen.</p>
           </section>
           <div class="nfc-panel"><div class="nfc-symbol" aria-hidden="true">⌁</div><div><strong id="nfcTitle">A punt per llegir</strong><p id="nfcMessage">La lectura NFC associarà el registre a la línia o vehicle.</p></div><button class="primary-button" id="scanNfcButton" type="button">Llegir NFC</button></div>

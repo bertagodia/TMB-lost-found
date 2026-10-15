@@ -42,7 +42,7 @@ function updateDestination() {
   destinationInput.value = destination || '';
   assignmentLabel.classList.toggle('assigned', Boolean(destination));
   assignmentLabel.textContent = destination
-    ? `Estació de destinació assignada automàticament: ${destination}`
+    ? `Estació de destinació: ${destination}`
     : locationSelect.value
       ? 'No s’ha trobat cap estació de destinació per a aquest origen.'
       : 'L’estació de destinació es mostrarà en seleccionar l’origen.';
