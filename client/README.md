@@ -5,9 +5,9 @@ pantalles, els formularis, la captura d’imatges i la presentació clara de l�
 les sol·licituds. L’objectiu és que registrar o cercar un objecte sigui senzill des
 del mòbil.
 
-L’aplicació es planteja amb dues àrees: una d’ús intern per a TMB i una altra per a
-les persones que han perdut un objecte. La primera s’està desenvolupant ara; la
-segona és una funcionalitat prevista.
+L’aplicació té les àrees «Operaris TMB» i «Soc usuari», així com la pestanya
+«Match» per provar el seguiment amb dades fictícies locals. La connexió compartida
+amb el servidor encara no està implementada.
 
 ## Captura de la interfície actual
 
@@ -48,7 +48,7 @@ navegador del dispositiu i no es comparteixen amb altres persones.
 
 ## Pestanya «Soc usuari»: declarar un objecte perdut
 
-La interfície ara inclou una pestanya separada per a les persones que han perdut un
+La interfície inclou una pestanya separada per a les persones que han perdut un
 objecte. El formulari permet descriure’l (fins a 500 caràcters), indicar la línia,
 autobús o estació i la data de pèrdua, seleccionar tipus i color, afegir una foto de
 referència opcional i proporcionar nom, correu electrònic i telèfon opcional.
@@ -66,6 +66,20 @@ reals fins que existeixi una API segura i una política de privacitat definida.
 
 La pestanya de clients és actualment un formulari de declaració local; no fa cerques
 ni mostra coincidències.
+
+## Pestanya «Match»: demostració local
+
+La pestanya Match inclou dades fictícies per provar el seguiment sense API. Només
+mostra objectes amb almenys un match confirmat i, per cada coincidència, mostra la
+declaració i les dades de contacte fictícies del sol·licitant. La relació és de
+molts a molts: un objecte trobat pot vincular-se amb diverses declaracions i una
+declaració pot vincular-se amb diversos objectes trobats. Permet afegir o treure
+coincidències individuals, editar el lloc on s’ha trobat i la destinació
+d’enviament, comptar els dies des de l’entrada al servidor i marcar un objecte com
+a retornat. Les dades es desen només al navegador sota la clau
+`tmb-lost-found-match-demo`; no es llegeixen les declaracions reals ni l’historial
+dels operaris, no s’envien al servidor i no s’han d’introduir-hi dades personals.
+Per això, aquesta demostració no és un seguiment compartit entre dispositius.
 
 ## Evolució prevista: cerca i coincidències
 
@@ -103,7 +117,8 @@ el flux sense un tag NFC.
 ## Integracions pendents
 
 - Configurar l’URL i el contracte definitius de l’API amb l’equip de backend. No es
-	fan peticions mentre no hi hagi una API configurada.
+	fan peticions mentre no hi hagi una API configurada; Match continua sent una
+	demostració local fictícia fins que s’acordin persistència, autenticació i privacitat.
 - Acordar el format dels tags NFC. La lectura actual accepta provisionalment text
 	JSON (`{"line":"H12","vehicle":"3421"}`) o el número de sèrie del tag.
 - Definir el contracte de cerca i la presentació de coincidències amb l’equip de

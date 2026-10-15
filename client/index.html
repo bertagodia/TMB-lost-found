@@ -6,7 +6,8 @@
     <meta name="theme-color" content="#e30613" />
     <meta name="description" content="Registre d'objectes perduts trobats per operaris de TMB" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="match.css" />
     <link rel="stylesheet" href="location-assignment.css" />
     <title>TMB Lost &amp; Found</title>
   </head>
@@ -17,9 +18,10 @@
         <div><p class="eyebrow">Operacions · Objectes perduts</p><h1>Nou registre</h1></div>
         <button class="icon-button" id="pendingButton" type="button" title="Obrir les sol·licituds" aria-label="Obrir les sol·licituds"><span aria-hidden="true">↗</span><span class="pending-count" id="pendingCount">0</span></button>
       </header>
-      <nav class="audience-tabs" role="tablist" aria-label="Tipus d’usuari">
+      <nav class="audience-tabs" role="tablist" aria-label="Àrees de l’aplicació">
         <button class="audience-tab active" id="staffTab" type="button" role="tab" aria-selected="true" aria-controls="operatorPanel">Operaris TMB</button>
         <button class="audience-tab" id="citizenTab" type="button" role="tab" aria-selected="false" aria-controls="citizenPanel">Soc usuari</button>
+        <button class="audience-tab" id="matchTab" type="button" role="tab" aria-selected="false" aria-controls="matchPanel">Match</button>
       </nav>
       <section id="operatorPanel" role="tabpanel" aria-labelledby="staffTab">
       <nav class="transport-tabs" role="tablist" aria-label="Tipus de transport">
@@ -83,7 +85,21 @@
         <p class="citizen-confirmation" id="citizenConfirmation" role="status" aria-live="polite" hidden></p>
       </form>
     </section>
+    <section class="match-panel" id="matchPanel" role="tabpanel" aria-labelledby="matchTab" hidden>
+      <div class="citizen-heading"><p class="section-kicker">Seguiment d’objectes</p><h2>Match</h2><p class="muted">Confirma coincidències entre objectes trobats i declaracions, i segueix-ne els contactes, les ubicacions i els dies des de l’entrada.</p></div>
+      <p class="privacy-note match-demo-notice">Mode de demostració: les dades són fictícies i es guarden només en aquest navegador. Encara no hi ha sincronització amb el servidor; no hi introdueixis dades reals ni de contacte.</p>
+      <form class="match-link-form" id="newMatchForm">
+        <label>Objecte trobat<select name="recordId" required><option value="">Tria un objecte trobat</option></select></label>
+        <label>Declaració del sol·licitant<select name="reportId" required><option value="">Tria una declaració</option></select></label>
+        <button class="primary-button" type="submit">Confirmar match</button>
+      </form>
+      <div class="match-summary" id="matchSummary" aria-live="polite"></div>
+      <div class="match-list" id="matchList"></div>
+      <p class="empty-requests" id="emptyMatch" hidden>Encara no hi ha cap coincidència confirmada.</p>
+      <p class="match-feedback" id="matchFeedback" role="status" aria-live="polite"></p>
+    </section>
     </main>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script><script src="location-assignment.js" type="module"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script><script src="match.js" type="module"></script>
+    <script src="location-assignment.js" type="module"></script>
   </body>
 </html>
