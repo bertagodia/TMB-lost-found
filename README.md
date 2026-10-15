@@ -2,8 +2,10 @@
 
 Proyecto para mejorar el registro, la búsqueda y la devolución de objetos perdidos.
 La interfaz WP4 está en `client/`. El backbone WP5 de extracción con Ollama,
-revisión y búsqueda textual está en `search/`. Para abrir WP4 conectado a Ollama,
-ejecuta `python -m backend.server --port 8001` y visita http://127.0.0.1:8001. Consulta [search/README.md](search/README.md) para probarlo por CLI
+revisión y búsqueda textual está en `search/`. La API local FastAPI conecta ambos
+formularios a PostgreSQL; sigue [backend/README.md](backend/README.md) para instalar
+dependencias, configurar la base y arrancar. Visita http://127.0.0.1:8001 y `/docs`.
+Consulta [search/README.md](search/README.md) para probar la búsqueda por CLI
 y conocer el mapeo previsto desde los formularios WP4.
 
 ## Dónde trabaja cada equipo
@@ -24,10 +26,10 @@ TMB-lost-found/
 | [Backend](backend/README.md) | Acordar e implementar la API compartida entre los equipos |
 | [Búsqueda e imágenes](search/README.md) | Procesar imágenes y recuperar candidatos a partir de una reclamación |
 
-La app se comunicará con la API; no accederá directamente a PostgreSQL.
+La app se comunica con la API; no accede directamente a PostgreSQL.
 PostgreSQL sustituirá a SharePoint según la decisión comunicada por el equipo.
-La interfaz WP4 usa HTML, CSS y JavaScript. El contrato de la API está pendiente
-de acuerdo.
+La interfaz WP4 usa HTML, CSS y JavaScript. El contrato de la API local está
+documentado en OpenAPI; el despliegue de producción sigue pendiente.
 
 ## Empezar
 
@@ -44,7 +46,6 @@ cd TMB-lost-found
 Si ya tienes una copia, no la clones otra vez: sigue la [guía de Git](docs/git.md)
 para actualizarla y crear tu rama de trabajo desde `main`.
 
-La interfaz WP4 usa el backend local para extracción y registro. La API de
-producción y PostgreSQL siguen pendientes. Cada equipo
-añadirá las dependencias e instrucciones de ejecución cuando implemente su parte.
+La interfaz WP4 usa el backend local para extracción y persistencia en PostgreSQL.
+La API de producción y la integración HTTP de búsqueda siguen pendientes.
 Los cambios de campos o API se acordarán entre equipos antes de integrarlos.

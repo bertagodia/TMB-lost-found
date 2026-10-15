@@ -36,7 +36,7 @@ def _review(conn, object_id, details, *, status='approved', extraction_id=None,
     fields = reviewed_fields(details)
     text = '. '.join(part for part in (fields['objectType'], ', '.join(fields['colors']),
                                       fields['material'], fields['description'].strip()) if part)
-    return conn.execute('''INSERT INTO tmb.object_reviews
+    return conn.execute('''INSERT INTO public.object_reviews
         (id, object_id, status, source, extraction_id, object_type, material,
          colors, description, search_text, reviewer_ref, review_seconds)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *''',
@@ -50,13 +50,14 @@ class Repository:
         self.dsn = dsn
 
     def connect(self):
-        return psycopg.connect(self.dsn, row_factory=dict_row)
+        return psycopg.connect(self.dsn, row_factory=dict_row, connect_timeout=5,
+                               options='-c search_path=public')
 
     def create_photo(self, *, storage_key, image_sha256, media_type, size_bytes, width, height,
                      position, original_filename=None, client_selected_at=None):
         """Stage verified file metadata before extraction; no object is created yet."""
         with self.connect() as conn:
-            return conn.execute('''INSERT INTO tmb.photos
+            return conn.execute('''INSERT INTO public.photos
                 (id,storage_key,image_sha256,media_type,size_bytes,width,height,position,
                  original_filename,client_selected_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING *''', (str(uuid4()),storage_key,image_sha256,media_type,size_bytes,width,height,
@@ -66,10 +67,10 @@ class Repository:
                          prompt_version=None, preprocessing_version=None, cache_key=None,
                          input_config=None, source='operator'):
         with self.connect() as conn:
-            row = conn.execute('''INSERT INTO tmb.extraction_runs
+            row = conn.execute('''INSERT INTO public.extraction_runs
                 (id,photo_id,input_image_sha256,model_name,model_digest,prompt_version,
                  preprocessing_version,cache_key,input_config,source)
-                SELECT %s,id,image_sha256,%s,%s,%s,%s,%s,%s,%s FROM tmb.photos WHERE id=%s
+                SELECT %s,id,image_sha256,%s,%s,%s,%s,%s,%s,%s FROM public.photos WHERE id=%s
                 RETURNING *''', (str(uuid4()),model_name,model_digest,prompt_version,preprocessing_version,
                                 cache_key,Jsonb(input_config or {}),source,photo_id)).fetchone()
             if row is None:
@@ -79,7 +80,7 @@ class Repository:
     def complete_extraction(self, extraction_id, *, raw_output, proposed_fields, quality,
                             sensitive_content, warnings=None, timings=None):
         with self.connect() as conn:
-            row = conn.execute('''UPDATE tmb.extraction_runs SET status='succeeded',
+            row = conn.execute('''UPDATE public.extraction_runs SET status='succeeded',
                 raw_output=%s,proposed_fields=%s,quality=%s,sensitive_content=%s,warnings=%s,
                 timings=%s,completed_at=clock_timestamp() WHERE id=%s AND status='pending' RETURNING *''',
                 (Jsonb(raw_output),Jsonb(proposed_fields),quality,sensitive_content,
@@ -90,7 +91,7 @@ class Repository:
 
     def fail_extraction(self, extraction_id, error_message):
         with self.connect() as conn:
-            row = conn.execute('''UPDATE tmb.extraction_runs SET status='failed',error_message=%s,
+            row = conn.execute('''UPDATE public.extraction_runs SET status='failed',error_message=%s,
                 completed_at=clock_timestamp() WHERE id=%s AND status='pending' RETURNING *''',
                 (error_message,extraction_id)).fetchone()
             if row is None:
@@ -115,7 +116,7 @@ class Repository:
         metadata['date_quality'] = metadata['date_quality'] or 'unknown'
         with self.connect() as conn:
             # Consistent lock order avoids photo-adoption deadlocks across objects.
-            photos = conn.execute('SELECT * FROM tmb.photos WHERE id = ANY(%s) ORDER BY id FOR UPDATE',
+            photos = conn.execute('SELECT * FROM public.photos WHERE id = ANY(%s) ORDER BY id FOR UPDATE',
                                   (photo_ids,)).fetchall()
             by_id = {photo['id']:photo for photo in photos}
             if set(by_id) != set(photo_ids):
@@ -127,17 +128,17 @@ class Repository:
             digest = hashlib.sha256(json.dumps(submission,sort_keys=True,ensure_ascii=False,
                                                default=str,separators=(',',':')).encode()).hexdigest()
             columns = ['id','original_details','submission_hash',*metadata]
-            query = sql.SQL('INSERT INTO tmb.found_objects ({}) VALUES ({}) ON CONFLICT (id) DO NOTHING RETURNING id').format(
+            query = sql.SQL('INSERT INTO public.found_objects ({}) VALUES ({}) ON CONFLICT (id) DO NOTHING RETURNING id').format(
                 sql.SQL(',').join(map(sql.Identifier,columns)),sql.SQL(',').join(sql.Placeholder()*len(columns)))
             inserted = conn.execute(query,(object_id,Jsonb(fields),digest,*metadata.values())).fetchone()
-            obj = conn.execute('SELECT * FROM tmb.found_objects WHERE id=%s FOR UPDATE',(object_id,)).fetchone()
+            obj = conn.execute('SELECT * FROM public.found_objects WHERE id=%s FOR UPDATE',(object_id,)).fetchone()
             if not inserted:
                 if obj['submission_hash'] != digest:
                     raise ConflictError('Object ID already exists with a different submission')
                 return {**obj,'duplicate':True}
-            if any(photo['object_id'] is not None for photo in photos):
+            if any(photo['object_id'] is not None or photo['report_id'] is not None for photo in photos):
                 raise ConflictError('Photo already belongs to another object; stage a new reference')
-            conn.execute('UPDATE tmb.photos SET object_id=%s WHERE id=ANY(%s)',(object_id,photo_ids))
+            conn.execute('UPDATE public.photos SET object_id=%s WHERE id=ANY(%s)',(object_id,photo_ids))
             _review(conn,object_id,fields,extraction_id=extraction_id)
             return {**obj,'duplicate':False}
 
@@ -147,7 +148,7 @@ class Repository:
 
     def set_status(self, object_id, status):
         with self.connect() as conn:
-            row = conn.execute('UPDATE tmb.found_objects SET status=%s WHERE id=%s RETURNING *',
+            row = conn.execute('UPDATE public.found_objects SET status=%s WHERE id=%s RETURNING *',
                                (status,object_id)).fetchone()
             if row is None:
                 raise KeyError(object_id)
@@ -157,14 +158,109 @@ class Repository:
         with self.connect() as conn:
             # One snapshot for the object and its history, even under concurrent reviews.
             conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-            obj = conn.execute('SELECT * FROM tmb.found_objects WHERE id=%s',(object_id,)).fetchone()
+            obj = conn.execute('SELECT * FROM public.found_objects WHERE id=%s',(object_id,)).fetchone()
             if obj is None:
                 return None
-            obj['photos'] = conn.execute('SELECT * FROM tmb.photos WHERE object_id=%s ORDER BY position',(object_id,)).fetchall()
-            obj['reviews'] = conn.execute('SELECT * FROM tmb.object_reviews WHERE object_id=%s ORDER BY revision',(object_id,)).fetchall()
+            obj['photos'] = conn.execute('SELECT * FROM public.photos WHERE object_id=%s ORDER BY position',(object_id,)).fetchall()
+            obj['reviews'] = conn.execute('SELECT * FROM public.object_reviews WHERE object_id=%s ORDER BY revision',(object_id,)).fetchall()
             return obj
 
     def searchable_objects(self):
         """One consistent inventory snapshot for rebuilding the prototype BM25 index."""
         with self.connect() as conn:
-            return conn.execute('SELECT * FROM tmb.searchable_objects ORDER BY id').fetchall()
+            return conn.execute('SELECT * FROM public.searchable_objects ORDER BY id').fetchall()
+
+    def health(self):
+        """Require the exact migrations in this checkout; never migrate on startup."""
+        from .migrate import MIGRATIONS
+        with self.connect() as conn:
+            rows = conn.execute('SELECT version,sha256 FROM public.tmb_schema_migrations').fetchall()
+            expected = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                        for p in MIGRATIONS.glob('[0-9][0-9][0-9]_*.sql')}
+            if {row['version']: row['sha256'] for row in rows} != expected:
+                raise RuntimeError('Run python -m database.migrate before starting the API')
+            conn.execute('SELECT 1 FROM public.searchable_objects LIMIT 1')
+
+    def get_photo(self, photo_id):
+        with self.connect() as conn:
+            return conn.execute('SELECT * FROM public.photos WHERE id=%s', (photo_id,)).fetchone()
+
+    def discard_photo(self, photo_id):
+        """Only delete this request's unused staged photo; audited photos are retained."""
+        with self.connect() as conn:
+            return conn.execute('''DELETE FROM public.photos p WHERE id=%s
+                AND object_id IS NULL AND report_id IS NULL
+                AND NOT EXISTS (SELECT FROM public.extraction_runs WHERE photo_id=p.id)
+                RETURNING storage_key''', (photo_id,)).fetchone()
+
+    def get_extraction(self, extraction_id):
+        with self.connect() as conn:
+            return conn.execute('SELECT * FROM public.extraction_runs WHERE id=%s', (extraction_id,)).fetchone()
+
+    def cached_extraction(self, cache_key):
+        with self.connect() as conn:
+            return conn.execute('''SELECT * FROM public.extraction_runs
+                WHERE cache_key=%s AND status='succeeded' ORDER BY completed_at DESC LIMIT 1''',
+                (cache_key,)).fetchone()
+
+    def list_records(self, kind, *, limit=50, offset=0, status=None):
+        table = {'objects': 'found_objects', 'reports': 'lost_reports'}[kind]
+        if type(limit) is not int or not 1 <= limit <= 100 or type(offset) is not int or offset < 0:
+            raise ValueError('Invalid pagination')
+        with self.connect() as conn:
+            conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+            where = sql.SQL(' WHERE status=%s') if status is not None else sql.SQL('')
+            params = (status,) if status is not None else ()
+            base = sql.SQL(' FROM public.{}').format(sql.Identifier(table)) + where
+            total = conn.execute(sql.SQL('SELECT count(*) AS n') + base, params).fetchone()['n']
+            rows = conn.execute(sql.SQL('SELECT *') + base +
+                sql.SQL(' ORDER BY created_at DESC,id LIMIT %s OFFSET %s'), (*params, limit, offset)).fetchall()
+            return dict(items=rows, total=total, limit=limit, offset=offset)
+
+    def register_report(self, report_id, *, data, contact, photo_ids):
+        """Atomically save the report, optional contact and staged reference photo."""
+        with self.connect() as conn:
+            photos = conn.execute('SELECT * FROM public.photos WHERE id=ANY(%s) ORDER BY position FOR UPDATE',
+                                  (photo_ids,)).fetchall()
+            if len(photos) != len(photo_ids) or [p['position'] for p in photos] != list(range(1, len(photos)+1)):
+                raise ValueError('Unknown or unordered staged photo')
+            submission = dict(data=data, contact=contact, photos=[p['image_sha256'] for p in photos])
+            digest = hashlib.sha256(json.dumps(submission, sort_keys=True, ensure_ascii=False,
+                default=str, separators=(',', ':')).encode()).hexdigest()
+            columns = ['id', 'submission_hash', *data]
+            query = sql.SQL('INSERT INTO public.lost_reports ({}) VALUES ({}) ON CONFLICT (id) DO NOTHING RETURNING id').format(
+                sql.SQL(',').join(map(sql.Identifier, columns)), sql.SQL(',').join(sql.Placeholder()*len(columns)))
+            inserted = conn.execute(query, (report_id, digest, *data.values())).fetchone()
+            row = conn.execute('SELECT * FROM public.lost_reports WHERE id=%s FOR UPDATE', (report_id,)).fetchone()
+            if not inserted:
+                if row['submission_hash'] != digest:
+                    raise ConflictError('Report ID already exists with a different submission')
+                return {**row, 'duplicate': True}
+            if any(p['object_id'] is not None or p['report_id'] is not None for p in photos):
+                raise ConflictError('Photo already belongs to another record')
+            conn.execute('UPDATE public.photos SET report_id=%s WHERE id=ANY(%s)', (report_id, photo_ids))
+            if contact:
+                conn.execute('INSERT INTO public.report_contacts(report_id,name,email,phone) VALUES (%s,%s,%s,%s)',
+                             (report_id, contact.get('name'), contact.get('email'), contact.get('phone')))
+            return {**row, 'duplicate': False}
+
+    def get_report(self, report_id):
+        with self.connect() as conn:
+            conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+            row = conn.execute('SELECT * FROM public.lost_reports WHERE id=%s', (report_id,)).fetchone()
+            if row is not None:
+                row['photos'] = conn.execute('SELECT * FROM public.photos WHERE report_id=%s ORDER BY position',
+                                            (report_id,)).fetchall()
+            return row
+
+    def get_contact(self, report_id):
+        with self.connect() as conn:
+            return conn.execute('SELECT * FROM public.report_contacts WHERE report_id=%s', (report_id,)).fetchone()
+
+    def set_report_status(self, report_id, status):
+        with self.connect() as conn:
+            row = conn.execute('UPDATE public.lost_reports SET status=%s WHERE id=%s RETURNING *',
+                               (status, report_id)).fetchone()
+            if row is None:
+                raise KeyError(report_id)
+            return row

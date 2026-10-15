@@ -40,7 +40,7 @@ class DatabaseTests(unittest.TestCase):
 
     def setUp(self):
         with self.repo.connect() as conn:
-            conn.execute('TRUNCATE tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
+            conn.execute('TRUNCATE public.report_contacts,public.object_reviews,public.extraction_runs,public.photos,public.found_objects,public.lost_reports')
 
     def photo(self, position=1, digest='a'*64):
         return self.repo.create_photo(storage_key='fixtures/'+uuid4().hex+'.jpg',image_sha256=digest,
@@ -97,7 +97,7 @@ class DatabaseTests(unittest.TestCase):
         self.register(photos=[photo])
         new = self.extraction(photo)
         self.repo.add_review('legacy-001',FIELDS,extraction_id=new['id'])
-        self.assertEqual(len(self.execute('SELECT * FROM tmb.extraction_runs')),2)
+        self.assertEqual(len(self.execute('SELECT * FROM public.extraction_runs')),2)
         self.assertEqual(len(self.repo.get_object('legacy-001')['reviews']),2)
 
     def test_idempotency_survives_new_review_and_status(self):
@@ -120,7 +120,7 @@ class DatabaseTests(unittest.TestCase):
         with self.assertRaises(psycopg.errors.CheckViolation):
             self.register('two',photos=[other],extraction_id=run['id'])
         self.assertIsNone(self.repo.get_object('two'))
-        self.assertIsNone(self.execute('SELECT object_id FROM tmb.photos WHERE id=%s',(other['id'],))[0]['object_id'])
+        self.assertIsNone(self.execute('SELECT object_id FROM public.photos WHERE id=%s',(other['id'],))[0]['object_id'])
 
     def test_equal_hashes_do_not_merge_objects_or_allow_photo_reassignment(self):
         first, second = self.photo(), self.photo()
@@ -130,29 +130,29 @@ class DatabaseTests(unittest.TestCase):
         with self.assertRaises(ConflictError):
             self.register('three',photos=[first])
         with self.assertRaises(psycopg.errors.CheckViolation):
-            self.execute("UPDATE tmb.photos SET object_id='two' WHERE id=%s",(first['id'],))
+            self.execute("UPDATE public.photos SET object_id='two' WHERE id=%s",(first['id'],))
 
     def test_constraints_and_immutable_history(self):
         photo = self.photo()
         run = self.extraction(photo)
         self.register(photos=[photo],extraction_id=run['id'])
-        queries = ["UPDATE tmb.found_objects SET date_quality='confirmed'",
-                   "UPDATE tmb.found_objects SET found_line=''",
-                   "UPDATE tmb.found_objects SET original_details='{}'",
-                   "UPDATE tmb.object_reviews SET colors=ARRAY['Negre']",
-                   "DELETE FROM tmb.object_reviews", "DELETE FROM tmb.extraction_runs",
-                   "DELETE FROM tmb.photos",
-                   "UPDATE tmb.extraction_runs SET raw_output='{}'",
-                   "UPDATE tmb.photos SET image_sha256=repeat('b',64)"]
+        queries = ["UPDATE public.found_objects SET date_quality='confirmed'",
+                   "UPDATE public.found_objects SET found_line=''",
+                   "UPDATE public.found_objects SET original_details='{}'",
+                   "UPDATE public.object_reviews SET colors=ARRAY['Negre']",
+                   "DELETE FROM public.object_reviews", "DELETE FROM public.extraction_runs",
+                   "DELETE FROM public.photos",
+                   "UPDATE public.extraction_runs SET raw_output='{}'",
+                   "UPDATE public.photos SET image_sha256=repeat('b',64)"]
         for query in queries:
             with self.subTest(query=query), self.assertRaises(psycopg.errors.CheckViolation):
                 self.execute(query)
         with self.assertRaises(psycopg.errors.CheckViolation):
-            self.execute("INSERT INTO tmb.object_reviews(id,object_id,status,source,colors,search_text) VALUES ('bad','legacy-001','approved','manual',ARRAY['Negre','Negre'],'x')")
+            self.execute("INSERT INTO public.object_reviews(id,object_id,status,source,colors,search_text) VALUES ('bad','legacy-001','approved','manual',ARRAY['Negre','Negre'],'x')")
         with self.assertRaises(psycopg.errors.CheckViolation):
-            self.execute("INSERT INTO tmb.object_reviews(id,object_id,status,source,search_text) VALUES ('bad','legacy-001','approved','manual','')")
+            self.execute("INSERT INTO public.object_reviews(id,object_id,status,source,search_text) VALUES ('bad','legacy-001','approved','manual','')")
         with self.assertRaises(psycopg.errors.ForeignKeyViolation):
-            self.execute("INSERT INTO tmb.extraction_runs(id,photo_id,input_image_sha256,model_name) VALUES ('wrong',%s,repeat('b',64),'test')",(photo['id'],))
+            self.execute("INSERT INTO public.extraction_runs(id,photo_id,input_image_sha256,model_name) VALUES ('wrong',%s,repeat('b',64),'test')",(photo['id'],))
 
     def test_concurrent_reviews_and_registrations(self):
         with ThreadPoolExecutor(max_workers=4) as pool:
@@ -181,20 +181,42 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(len(self.repo.get_object('demo-wp3-bottle')['reviews']),2)
 
     def test_migrations_repeat_checksum_and_atomic_failure(self):
-        self.assertEqual(migrate(self.dsn),1)
+        self.assertEqual(migrate(self.dsn),2)
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)
+            for migration in MIGRATIONS.glob('*.sql'):
+                shutil.copyfile(migration,folder/migration.name)
             first = folder/'001_inventory.sql'
             shutil.copyfile(MIGRATIONS/first.name,first)
             first.write_text(first.read_text()+'\n-- modified\n')
             with self.assertRaisesRegex(ValueError,'changed'):
                 migrate(self.dsn,folder)
             shutil.copyfile(MIGRATIONS/first.name,first)
-            (folder/'002_broken.sql').write_text('CREATE TABLE tmb.should_rollback(id int); SELECT missing_column;')
+            (folder/'003_broken.sql').write_text('CREATE TABLE public.should_rollback(id int); SELECT missing_column;')
             with self.assertRaises(psycopg.errors.UndefinedColumn):
                 migrate(self.dsn,folder)
-            self.assertIsNone(self.execute("SELECT to_regclass('tmb.should_rollback') AS name")[0]['name'])
-            self.assertEqual(len(self.execute('SELECT * FROM public.tmb_schema_migrations')),1)
+            self.assertIsNone(self.execute("SELECT to_regclass('public.should_rollback') AS name")[0]['name'])
+            self.assertEqual(len(self.execute('SELECT * FROM public.tmb_schema_migrations')),2)
+
+    def test_fresh_migration_batch_is_atomic_including_template(self):
+        name = 'tmb_test_' + uuid4().hex
+        with psycopg.connect(self.admin, autocommit=True) as conn:
+            conn.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(name)))
+        try:
+            dsn = make_conninfo(self.admin, dbname=name)
+            with tempfile.TemporaryDirectory() as folder:
+                folder = Path(folder)
+                for migration in MIGRATIONS.glob('*.sql'):
+                    shutil.copyfile(migration,folder/migration.name)
+                (folder/'003_broken.sql').write_text('SELECT missing_column;')
+                with self.assertRaises(psycopg.errors.UndefinedColumn):
+                    migrate(dsn, folder)
+            with psycopg.connect(dsn) as conn:
+                self.assertEqual(conn.execute("SELECT to_regclass('public.found_objects'),to_regclass('public.tmb_schema_migrations')").fetchone(), (None, None))
+            self.assertEqual(migrate(dsn), 2)
+        finally:
+            with psycopg.connect(self.admin, autocommit=True) as conn:
+                conn.execute(sql.SQL('DROP DATABASE {} WITH (FORCE)').format(sql.Identifier(name)))
 
 
 if __name__ == '__main__':

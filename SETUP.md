@@ -1,14 +1,14 @@
 # Configuración local para cada persona
 
 Esta guía permite ejecutar el prototipo completo en tu propio ordenador: interfaz
-WP4, servidor Python y extracción de imágenes con Ollama. Cada persona necesita
+WP4, API FastAPI, PostgreSQL y extracción de imágenes con Ollama. Cada persona necesita
 su propia instalación, copia del repositorio y modelo descargado.
 
 El navegador se conecta a `http://127.0.0.1:8001` y Python llama a Ollama en
 `http://127.0.0.1:11434`. Ambos servicios deben ejecutarse en el mismo ordenador.
 Los registros y fotos de prueba son locales: no se sincronizan entre compañeros.
-No necesitas PostgreSQL, Docker, Node.js, claves de API ni un archivo `.env` para
-este flujo. Necesitas Internet para descargar herramientas, dependencias y modelo;
+Necesitas PostgreSQL 17 (recomendado mediante Docker Compose). Node.js solo es
+necesario para las pruebas JavaScript; no hacen falta claves de servicios externos. Necesitas Internet para descargar herramientas, dependencias y modelo;
 la inferencia posterior se ejecuta localmente.
 
 ## 1. Instalar las herramientas
@@ -18,6 +18,7 @@ Instala:
 - [Git](https://git-scm.com/downloads).
 - [Python 3.11 o superior](https://www.python.org/downloads/), con `pip` y `venv`.
 - [Ollama para tu sistema operativo](https://ollama.com/download).
+- Docker Desktop con Compose, o un servidor PostgreSQL 17 local.
 - Un navegador actualizado.
 
 En Windows, el instalador de Python debe proporcionar el comando `py`; abre una
@@ -93,7 +94,7 @@ la política de scripts de PowerShell. Python documenta este uso en su
 ```powershell
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r search/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
 ```
 
 **macOS / Linux**
@@ -101,11 +102,11 @@ py -3 -m venv .venv
 ```bash
 python3 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -r search/requirements.txt
+./.venv/bin/python -m pip install -r backend/requirements.txt
 ```
 
-Las dependencias de extracción son Pillow y Pydantic, con las versiones indicadas
-en `search/requirements.txt`. Si Debian/Ubuntu indica que falta `venv` o
+Las dependencias incluyen FastAPI, Uvicorn, Psycopg, Pillow y Pydantic, con los
+intervalos de versión indicados en los requirements de backend, database y search. Si Debian/Ubuntu indica que falta `venv` o
 `ensurepip`, instala el paquete de `venv` correspondiente a tu versión de Python
 (por ejemplo `python3-venv`) y repite la creación del entorno.
 
@@ -138,9 +139,40 @@ La lista debe incluir exactamente `qwen3-vl:2b-instruct`. El primer comando pued
 tardar según tu conexión. Descargar el modelo no inicia el servidor de la UI.
 No hace falta ejecutar `ollama run` ni dejar una conversación con el modelo abierta.
 
+## 4.1. Preparar PostgreSQL
+
+Con Docker iniciado, configura una contraseña de desarrollo. Desde la raíz:
+
+**Windows — PowerShell**
+
+```powershell
+$env:POSTGRES_PASSWORD='choose-a-local-password'
+docker compose -f database/compose.yaml up -d --wait
+$env:DATABASE_URL='postgresql://tmb:choose-a-local-password@127.0.0.1:55432/tmb'
+.\.venv\Scripts\python.exe -m database.migrate
+```
+
+**macOS / Linux**
+
+```bash
+export POSTGRES_PASSWORD='choose-a-local-password'
+docker compose -f database/compose.yaml up -d --wait
+export DATABASE_URL='postgresql://tmb:choose-a-local-password@127.0.0.1:55432/tmb'
+./.venv/bin/python -m database.migrate
+```
+
+Usa la misma contraseña en ambas variables; codifica los caracteres especiales
+en la URL. Estas variables pertenecen a la terminal actual: vuelve a definir
+`DATABASE_URL` si abres otra. No se carga `.env` automáticamente.
+
+Las dos migraciones se aplican sobre una base nueva vacía. Puedes repetir el
+comando de migración: verifica checksums y solo aplica archivos pendientes.
+No edites migraciones ya aplicadas. Para detener PostgreSQL sin borrar sus datos,
+usa `docker compose -f database/compose.yaml down`, sin `-v`.
+
 ## 5. Iniciar el servidor de la aplicación
 
-En otra terminal, desde la raíz del repositorio:
+Desde la raíz del repositorio, en una terminal con `DATABASE_URL` configurada:
 
 **Windows — PowerShell**
 
@@ -157,7 +189,8 @@ En otra terminal, desde la raíz del repositorio:
 Debe aparecer:
 
 ```text
-WP4 + Ollama: http://127.0.0.1:8001
+TMB API: http://127.0.0.1:8001 — /docs
+X-Local-Token: <token generado al arrancar>
 ```
 
 Mantén esta terminal abierta y visita **http://127.0.0.1:8001**. Usa este servidor
@@ -167,10 +200,12 @@ solo `client/` no proporciona la API de extracción.
 Puedes abrir **http://127.0.0.1:8001/api/health** para comprobar que responde:
 
 ```json
-{"model":"qwen3-vl:2b-instruct","status":"ready"}
+{"status":"ready","database":"ready","model":"qwen3-vl:2b-instruct"}
 ```
 
-Este endpoint confirma que funciona el servidor Python; **no comprueba** que el
+Este endpoint confirma PostgreSQL y los checksums de las migraciones; devuelve
+503 si no está preparado. Abre `/docs` e introduce el token de la terminal en
+Authorize para probar la API. El endpoint **no comprueba** que el
 modelo esté instalado ni que Ollama pueda extraer una foto. La prueba siguiente
 comprueba el recorrido real.
 
@@ -194,8 +229,8 @@ los archivos proporcionados para la prueba de la botella.
 El nombre y la descripción automáticos se generan en inglés; las etiquetas actuales
 del formulario son placeholders. La extracción puede equivocarse incluso sin avisos.
 Un resultado insuficiente o sensible deja los campos vacíos para completarlos a mano.
-La pantalla ciudadana guarda declaraciones localmente; su búsqueda aún no está
-conectada a este flujo.
+La pantalla ciudadana envía declaraciones a PostgreSQL y conserva una cola local
+si falla la conexión. Su búsqueda aún no está conectada a este flujo.
 
 ## 7. Arrancar los días siguientes y actualizar
 
@@ -203,11 +238,13 @@ No necesitas recrear `.venv` ni volver a descargar el modelo cada día:
 
 1. Comprueba que Ollama está abierto (`ollama list`).
 2. Entra en la carpeta del repositorio.
-3. Ejecuta el comando del paso 5 y abre `http://127.0.0.1:8001`.
+3. Inicia PostgreSQL con Compose y configura DATABASE_URL como en 4.1.
+4. Ejecuta el comando del paso 5 y abre `http://127.0.0.1:8001`.
 
 Para actualizar, detén el servidor Python con `Ctrl+C`, comprueba que tu copia esté
 limpia, ejecuta `git pull --ff-only origin main` **estando en main**, repite la
-instalación de `search/requirements.txt` del paso 3 y arranca de nuevo. Recarga la
+instalación de `backend/requirements.txt` del paso 3, aplica `python -m database.migrate`
+y arranca de nuevo. Recarga la
 página después de cada reinicio: el token local de la sesión cambia.
 
 `Ctrl+C` detiene el servidor, sin borrar datos. Si iniciaste Ollama con `ollama serve`,
@@ -222,9 +259,9 @@ La siguiente extracción necesitará volver a cargarlo.
 
 ## 8. Dónde se guardan los datos y cómo trabajar en equipo
 
-- `artifacts/wp4/extractions/`: borradores automáticos, procedencia y tiempos.
-- `artifacts/wp4/records/`: registros confirmados con las fotografías originales.
-- En el navegador: cola de envíos, historial y declaraciones ciudadanas locales.
+- Volumen PostgreSQL: objetos, revisiones, declaraciones, contactos y extracciones.
+- `artifacts/wp4/photos/`: archivos originales de fotografías.
+- En el navegador: colas pendientes e historial de envíos.
 - `.venv/`: dependencias Python; el modelo lo almacena Ollama fuera del repositorio.
 
 `artifacts/` y `.venv/` están ignorados por Git. Clonar o hacer `git pull` no descarga
@@ -236,7 +273,8 @@ inclusión automática en el índice de búsqueda.
 Puedes elegir otra carpeta añadiendo `--data-dir artifacts/pruebas-personales` al
 comando de arranque. Las rutas relativas se resuelven desde la carpeta de ejecución.
 Cambiar de carpeta no migra datos existentes. Para conservar registros, guarda una
-copia de la carpeta de datos correspondiente.
+copia de la base PostgreSQL y de la carpeta de fotografías correspondiente. No
+se importan los JSON anteriores de records/ o extractions/.
 
 El servidor escucha exclusivamente en `127.0.0.1`: cada persona abre su propia
 instancia en su ordenador. Un móvil u otro ordenador no puede conectarse usando
@@ -253,7 +291,8 @@ actual no implementa alojamiento compartido, autenticación ni despliegue públi
 | Ollama devuelve HTTP 404 o modelo no encontrado | Ejecuta `ollama pull qwen3-vl:2b-instruct` y comprueba el nombre en `ollama list`. |
 | `Address already in use` al arrancar Python | Puede estar ya iniciado. Comprueba `/api/health`; si necesitas otra instancia, usa `--port 8002` y abre la URL con ese puerto. |
 | Error de token o “Recarrega la pàgina” | Recarga después de reiniciar el servidor. Usa UI y API en el mismo origen. |
-| La UI busca una API antigua | En la consola del navegador ejecuta `localStorage.removeItem('tmb_api_base_url')` y recarga. |
+| La UI busca una API antigua | Actualiza y recarga: esta versión usa siempre el origen que sirve la página e ignora tmb_api_base_url. |
+| DATABASE_URL ausente o health devuelve 503 | Define DATABASE_URL, inicia PostgreSQL y ejecuta las migraciones del paso 4.1. |
 | La extracción tarda uno o dos minutos | Puede ocurrir en CPU, con carga del equipo o tras una pausa. El límite por llamada es 300 s; mira el contador y los tiempos del JSON. |
 | HTTP 409 / extracción en curso | Espera a que termine la petición anterior y reintenta. Evita ejecutar benchmarks y extracciones de la UI a la vez. |
 | JPG rechazado o imagen inválida | Actualiza main. Comprueba formato real, tamaño y resolución; renombrar una extensión no convierte el archivo. MPO está soportado. |
@@ -270,11 +309,17 @@ de carga, evaluación y generación.
 
 ## 10. Verificación opcional para desarrollo
 
+Instala primero `backend/requirements-dev.txt` y define TEST_DATABASE_URL con un
+rol local con CREATEDB (puede apuntar a la instancia de desarrollo). Las pruebas
+crean y eliminan bases `tmb_test_<uuid>`; no vacían tu base configurada.
 Con el intérprete de tu `.venv`, ejecuta:
 
 **Windows — PowerShell**
 
 ```powershell
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
+$env:TEST_DATABASE_URL=$env:DATABASE_URL
+.\.venv\Scripts\python.exe -m unittest discover -s database/tests -v
 .\.venv\Scripts\python.exe -m unittest discover -s search/tests -v
 .\.venv\Scripts\python.exe -m unittest discover -s backend/tests -v
 ```
@@ -282,6 +327,9 @@ Con el intérprete de tu `.venv`, ejecuta:
 **macOS / Linux**
 
 ```bash
+./.venv/bin/python -m pip install -r backend/requirements-dev.txt
+export TEST_DATABASE_URL="$DATABASE_URL"
+./.venv/bin/python -m unittest discover -s database/tests -v
 ./.venv/bin/python -m unittest discover -s search/tests -v
 ./.venv/bin/python -m unittest discover -s backend/tests -v
 ```

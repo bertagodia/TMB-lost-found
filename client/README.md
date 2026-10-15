@@ -81,16 +81,17 @@ separació en fitxers manté la interfície independent de les integracions:
 Per executar la UI **connectada**, des de l’arrel del repositori:
 
 ```bash
-python -m pip install -r search/requirements.txt
+python -m pip install -r backend/requirements.txt
+# Configura DATABASE_URL y prepara PostgreSQL según backend/README.md.
+python -m database.migrate
 ollama pull qwen3-vl:2b-instruct
 # Inicia ollama serve en una altra terminal si no està actiu.
 python -m backend.server --port 8001
 ```
 
 Obre **http://127.0.0.1:8001**. No utilitzis `python -m http.server` per provar
-l’extracció: només serveix fitxers i no implementa l’API. Si havies configurat
-`tmb_api_base_url` al navegador, elimina aquest valor per utilitzar el servidor local
-que serveix la pàgina. La UI i l’API han de compartir origen en aquesta versió.
+l’extracció: només serveix fitxers i no implementa l’API. La configuració antiga `tmb_api_base_url` s’ignora: s’utilitza el servidor
+local que serveix la pàgina. La UI i l’API han de compartir origen en aquesta versió.
 
 1. Identifica el vehicle i afegeix les dues fotografies.
 2. Entra a **Detalls**: la foto principal s’envia automàticament a Ollama.
@@ -116,8 +117,9 @@ Un material incert o contradictori queda buit perquè el revisis. Un resultat se
 avisos també pot ser incorrecte. La foto completa continua sent l’entrada habitual;
 els recortes es comparen separadament al [benchmark](../search/benchmarks/README.md).
 
-Les extraccions es guarden separades dels camps revisats. El servidor desa dades a
-`artifacts/wp4/` per defecte; `--data-dir` permet utilitzar una altra carpeta.
+Les extraccions i els camps revisats es guarden separadament a PostgreSQL. Les
+fotos originals es desen a `artifacts/wp4/`; `--data-dir` permet canviar la carpeta.
+Conserva tant la carpeta com el volum de PostgreSQL per mantenir els adjunts.
 Reintentar el mateix ID i contingut no duplica registres; un ID amb contingut
 diferent produeix un conflicte. «Enviada» a l’historial indica recepció pel servidor
 local, no una entrega real a TMB. Consulta [backend/README.md](../backend/README.md).
@@ -128,7 +130,7 @@ el flux sense un tag NFC.
 
 ## Integracions pendents
 
-- Evolucionar l’API local a una API de producció amb autenticació i PostgreSQL.
+- Evolucionar l’API local a una API de producció amb autenticació.
 - Acordar el format dels tags NFC. La lectura actual accepta provisionalment text
 	JSON (`{"line":"H12","vehicle":"3421"}`) o el número de sèrie del tag.
 - Definir el contracte de cerca i la presentació de coincidències amb l’equip de
@@ -137,3 +139,18 @@ el flux sense un tag NFC.
 	borroses encara no està implementada.
 - La cua offline desa les imatges al navegador; per a ús real cal valorar una
 	persistència més adequada per a fitxers grans i la sincronització en segon pla.
+
+## Declaracions i cues de sincronització
+
+El formulari ciutadà envia les declaracions a `POST /api/lost-reports`, amb una
+foto opcional i contacte separat. La cua persisteix al navegador abans d’enviar;
+si falla el servidor, conserva el mateix ID i reintenta en recarregar o recuperar
+connexió. Només la confirmació del servidor marca el registre com enviat. Les
+declaracions antigues `saved-local` no s’importen automàticament.
+
+`sync.mjs` comparteix la comprovació de confirmacions i els reintents entre les
+dues cues. Prova els casos de connexió, errors i recàrrega amb:
+
+```bash
+node --test client/tests/sync.test.mjs
+```

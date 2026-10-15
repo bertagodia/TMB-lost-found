@@ -1,15 +1,17 @@
 # Backbone de datos v0.1 — contrato propuesto para PostgreSQL
 
-**Actualización de implementación (WP3):** las cuatro tablas de inventario, las
+**Actualización de implementación (WP3):** las seis tablas de inventario y declaraciones, las
 migraciones, el repositorio Python y la vista de búsqueda ya están implementados
 en esta rama. Consulta [README.md](README.md) para ejecutarlos y conocer las
 decisiones concretas de esta primera entrega. Este documento conserva el diseño
-y el alcance futuro; la UI y el buscador todavía no usan PostgreSQL.
+y el alcance futuro. La API local y ambos formularios ya usan PostgreSQL;
+la integración HTTP de búsqueda queda pendiente. El esquema ejecutable actual
+está en `migrations/001_inventory.sql` y `migrations/002_api_contract.sql`, en `public`.
 
 **Objetivo:** dar al equipo de base de datos un primer esquema implementable para
 registrar objetos, conservar extracciones y revisiones, y proporcionar datos al
 buscador. Este documento es una propuesta de contrato basada en el código actual;
-no es una migración ejecutada ni significa que la aplicación ya use PostgreSQL.
+no sustituye las migraciones ejecutables ni la documentación de la API actual.
 
 Esta propuesta amplía el [borrador de modelo y operaciones de WP3](modelo-y-operaciones.md)
 con los requisitos de la extracción y revisión que ya existen en `main`. Ambos
@@ -25,10 +27,10 @@ silenciosamente el trabajo anterior. Diferencias que hay que resolver juntos:
 - Declaraciones y contactos como segunda fase explícita.
 
 Las referencias de código al final apuntan a la versión `182dafe` de `main`,
-porque esos componentes aún no forman parte de esta rama de documentación.
+como referencia histórica del diseño, anterior a la implementación de la API.
 
-La primera entrega puede limitarse a las cuatro tablas de inventario. Las dos
-tablas de declaraciones completan el contrato ciudadano, que se conectará después.
+La API implementa las cuatro tablas de inventario y las dos tablas de
+declaraciones, conectadas a ambos formularios.
 No hace falta esperar a un modelo completo de usuarios, transporte o devoluciones.
 
 ## 1. Alcance y decisiones de partida
@@ -203,8 +205,8 @@ un registro que sí tiene atributos confirmados. Una revisión rechazada puede t
 
 ### 2.5 `lost_reports` — declaraciones de personas que buscan un objeto
 
-Se puede implementar después de las cuatro tablas anteriores. La UI ciudadana
-actual guarda estos datos solo en el navegador; hace falta un endpoint futuro.
+Implementado junto al inventario mediante `POST /api/lost-reports`. La UI conserva
+una cola en el navegador y confirma el envío tras persistir en PostgreSQL.
 
 | Campo | Tipo orientativo | Obligatorio / significado |
 | --- | --- | --- |

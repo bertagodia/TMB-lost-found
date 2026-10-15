@@ -1,12 +1,12 @@
-# PostgreSQL — basic inventory implementation
+# PostgreSQL — inventory and citizen reports
 
-WP3 implements the inventory portion of [BACKBONE.md](BACKBONE.md): four tables,
+WP3 implements the inventory and citizen-report portions of [BACKBONE.md](BACKBONE.md): six tables,
 versioned migrations, a Python repository, synthetic demo data and a reviewed-only
 search view. PostgreSQL 17 and Python 3.11+ are the supported development setup.
 
-**The existing UI and search engine still use their current local storage.** This
-PR supplies their database foundation; HTTP/file-storage and BM25 integration are
-the next step after merge. No change of model or Catalan-label translation is needed.
+**Both WP4 forms now persist through the local FastAPI backend.** See
+[backend setup and API contracts](../backend/README.md). Photos stay on disk;
+PostgreSQL stores their verified metadata. BM25 HTTP integration remains future work.
 
 ## Start a local database
 
@@ -27,8 +27,9 @@ python -m database.seed --demo
 Use the same password in both places. Percent-encode special characters in the
 connection URI. These commands do not load `.env` automatically. An existing local
 PostgreSQL server also works: create an empty development database and set
-`DATABASE_URL` to its owner connection. The database owner must be able to create
-the `tmb` schema; migrations do not require extra PostgreSQL extensions.
+`DATABASE_URL` to its owner connection. The database owner must be able to create tables in `public` and install the
+trusted `pgcrypto` extension required by the template. Start with a fresh database;
+this release does not migrate the older `tmb` schema or import JSON files.
 
 The Compose service binds only localhost:55432 and persists its data in a named
 volume. `docker compose -f database/compose.yaml down` stops it without deleting
@@ -39,7 +40,7 @@ View the demo inventory:
 
 ```bash
 docker compose -f database/compose.yaml exec postgres \
-  psql -U tmb -d tmb -c 'SELECT * FROM tmb.searchable_objects;'
+  psql -U tmb -d tmb -c 'SELECT * FROM public.searchable_objects;'
 ```
 
 The seed creates a bottle with two photo references and three colors, plus a
@@ -53,11 +54,13 @@ overwrite corrections or reactivate a rejected object.
 
 | Table/view | Purpose |
 |---|---|
-| `tmb.found_objects` | Object ID, status, registration/finding context, immutable original fields and submission hash. |
-| `tmb.photos` | Staged or attached file references, ordered positions, original hashes and verified metadata. |
-| `tmb.extraction_runs` | Pending, succeeded or failed attempts; original output and proposed fields separate from human decisions. |
-| `tmb.object_reviews` | Append-only approved/rejected revisions, reviewed attributes and searchable text. |
-| `tmb.searchable_objects` | Only active objects whose **latest** review is approved. No photos, internal storage keys or model output. |
+| `public.found_objects` | Object ID, status, registration/finding context, immutable original fields and submission hash. |
+| `public.lost_reports` | Citizen descriptions, loss context, filters, stable submission hashes and open/closed/cancelled states. |
+| `public.report_contacts` | Optional contact details, separate from general API responses and search. |
+| `public.photos` | Staged or attached file references, ordered positions, original hashes and verified metadata. |
+| `public.extraction_runs` | Pending, succeeded or failed attempts; original output and proposed fields separate from human decisions. |
+| `public.object_reviews` | Append-only approved/rejected revisions, reviewed attributes and searchable text. |
+| `public.searchable_objects` | Only active objects whose **latest** review is approved. No photos, internal storage keys or model output. |
 | `public.tmb_schema_migrations` | Applied migration filenames, checksums and server timestamps. |
 
 IDs are text, including legacy client IDs. Photos may be staged before an object
@@ -81,7 +84,7 @@ it from reviewed type, colors, material and optional description. A registration
 may contain no photos for imports, and SQL permits N photos; the HTTP adapter must
 retain the UI's current 1–2-photo limit.
 
-## Python contract for the next integration
+## Python repository contract
 
 ```python
 import os
@@ -109,7 +112,7 @@ rows = store.searchable_objects()
 ```
 
 The names `verified_sha256`, `reviewed_fields`, etc. represent values supplied by
-the future backend adapter. `details` uses the current form shape: `colors` list,
+the HTTP backend adapter. `details` uses the current form shape: `colors` list,
 `objectType`, `material`, `description`. Type/material may be `None` for imports.
 The repository does not import the UI/search packages and does not accept data URLs.
 
@@ -134,6 +137,12 @@ The repository does not import the UI/search packages and does not accept data U
   first prototype so rejected/returned objects disappear without an index queue.
 
 ## Migrations and tests
+
+`001_inventory.sql` is the unchanged template. `002_api_contract.sql` adds defaults,
+concurrent revision allocation and immutable history/provenance guards. All tables
+use `public`. The runner removes only the template's outer BEGIN/COMMIT when
+executing it, while checksumming its original bytes. The complete pending batch
+and migration records commit atomically. Never rewrite an applied migration.
 
 `python -m database.migrate` is safe to repeat: it checks migration hashes and
 applies missing files transactionally under an advisory lock. Changed/missing
@@ -163,8 +172,8 @@ This implementation follows the inventory backbone over the older conceptual
 optional description with derived reviewed search text, staged photos and versioned
 extractions/reviews. This is the concrete proposal for review in this PR.
 
-Deferred: citizen reports/contact tables, authentication/roles, actual file storage
-and cleanup, JSON import, custody/returns workflows, SharePoint, and multiview
+Deferred: authentication/roles, expiry of abandoned extraction photos, JSON import,
+custody/returns workflows, SharePoint, and multiview
 extraction provenance (a future migration can add multiple input-photo references
 per extraction). Both object photos are already stored; each current extraction
 references one photo. No embeddings or database search ranking are introduced.
