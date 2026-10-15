@@ -101,12 +101,14 @@ function render(data) {
     card.append(facts);
 
     const report = element('section', 'match-linked-report');
+    report.dataset.noTranslate = '';
     report.append(
       element('strong', '', 'Declaració vinculada'),
       element('p', '', match.report_description),
       element('small', '', `Pèrdua: ${formatDate(match.lost_date)} · ${match.location_text || 'Lloc no indicat'}`)
     );
     const contact = element('dl', 'match-contact-details');
+    contact.dataset.noTranslate = '';
     for (const [label, value] of [
       ['Nom', match.contact_name],
       ['Correu electrònic', match.contact_email],

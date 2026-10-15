@@ -86,6 +86,23 @@ auxiliares dentro del mismo archivo `.jpg`) usan únicamente su imagen principal
 No hace falta convertirlos: el preprocesamiento conserva el archivo original y
 genera una copia JPEG para el modelo.
 
+## Idiomas y traducción
+
+El selector de la interfaz permite catalán, castellano e inglés. La interfaz se
+traduce desde catalán con Argos Translate; las descripciones libres se traducen
+del idioma seleccionado a inglés antes de enviarse al backend. Argos funciona
+localmente y no envía textos a servicios externos. Ollama sigue reservado a la
+extracción de atributos de las fotos.
+
+Instala una vez los modelos Argos `translate-ca_en`, `translate-es_en` y
+`translate-en_es`, tal como se indica en [SETUP.md](../SETUP.md). Argos combina
+los modelos ca→en y en→es para mostrar la interfaz en castellano.
+
+`POST /api/translate` acepta `{ "texts": ["..."], "source": "ca", "target": "en" }`
+y devuelve una traducción por texto. Los idiomas pueden ser `ca`, `es` o `en`;
+cada petición admite hasta 100 textos, 1000 caracteres por elemento y 12000
+caracteres en total.
+
 ## Registros revisados
 
 `POST /lost-found` recibe el registro del operario con sus fotos, vehículo,

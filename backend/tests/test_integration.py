@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from backend.server import Application
 from search.form_extraction import FormFields, OPTIONS, Recognition, TAXONOMY, extract_form
 from search.extraction import ExtractionError
+from search.translation import translate_texts
 
 
 class IntegrationTests(unittest.TestCase):
@@ -80,6 +81,23 @@ class IntegrationTests(unittest.TestCase):
         with self.assertRaises((ValueError, ExtractionError)):
             self.app.submit({**self.record, 'photos': [{'data': 'data:image/png;base64,YmFk'}]})
         self.assertFalse((self.root/'store/records').exists())
+
+    def test_local_translation_contract_and_validation(self):
+        with patch('argostranslate.translate.get_installed_languages') as installed, \
+             patch('argostranslate.translate.translate',
+                   side_effect=['lost red bag','black wallet']) as model:
+            installed.return_value = [type('Language', (), {'code': code})()
+                                      for code in ('ca','es','en')]
+            result = self.app.translate({'texts':['bossa vermella perduda','cartera negra'],
+                                         'source':'ca','target':'en'})
+        self.assertEqual(result, {'translations':['lost red bag','black wallet']})
+        self.assertEqual(model.call_args_list[0].args, ('bossa vermella perduda','ca','en'))
+        self.assertEqual(model.call_args_list[1].args, ('cartera negra','ca','en'))
+        with self.assertRaisesRegex(ValueError, 'idiomes'):
+            translate_texts(['hola'], 'fr','en')
+        with self.assertRaisesRegex(ValueError, '1000'):
+            translate_texts(['x' * 1001], 'ca','en')
+        self.assertEqual(translate_texts(['same'], 'en','en'), ['same'])
 
     def test_busy_and_legacy_single_color(self):
         with self.app.extraction_lock:

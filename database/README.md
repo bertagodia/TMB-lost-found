@@ -143,6 +143,10 @@ applies missing files transactionally under an advisory lock. Changed/missing
 applied migrations, out-of-order additions and SQL errors fail rather than silently
 changing history. All pending files in one invocation commit together. Add a new
 numbered SQL migration for future changes. There is no destructive automatic downgrade.
+For a failed initial setup with no applied migrations, `python -m database.migrate
+--repair-empty` removes only empty WP4 tables in `public`/`tmb` before retrying.
+It refuses databases with migration history, unexpected tables or any rows; never
+use it to reset a populated database.
 
 Tests require a local PostgreSQL role with `CREATEDB`. They create and drop only a
 unique `tmb_test_<uuid>` database; they never reset the database in `DATABASE_URL`.

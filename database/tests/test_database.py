@@ -11,7 +11,7 @@ import psycopg
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from database.migrate import migrate, MIGRATIONS
+from database.migrate import migrate, MIGRATIONS, repair_empty_application_tables
 from database.repository import Repository, ConflictError
 from database.seed import seed
 from search import FoundObject, SearchEngine, SearchQuery
@@ -30,6 +30,8 @@ class DatabaseTests(unittest.TestCase):
             conn.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(cls.name)))
         cls.addClassCleanup(cls.drop_database)
         cls.dsn = make_conninfo(cls.admin, dbname=cls.name)
+        with psycopg.connect(cls.dsn) as conn:
+            conn.execute('CREATE TABLE public.found_objects (legacy_marker integer)')
         migrate(cls.dsn)
         cls.repo = Repository(cls.dsn)
 
@@ -181,7 +183,11 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(len(self.repo.get_object('demo-wp3-bottle')['reviews']),2)
 
     def test_migrations_repeat_checksum_and_atomic_failure(self):
-        self.assertEqual(migrate(self.dsn),3)
+        migration_count = len(list(MIGRATIONS.glob('[0-9][0-9][0-9]_*.sql')))
+        self.assertEqual(migrate(self.dsn),migration_count)
+        self.assertEqual(self.execute("SELECT to_regclass('tmb.found_objects')")[0][0], 'tmb.found_objects')
+        self.assertEqual(self.execute("SELECT to_regclass('public.found_objects')")[0][0], 'public.found_objects')
+        self.assertEqual(self.execute("SELECT count(*) FROM tmb.http_submissions")[0][0], 0)
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)
             for migration in MIGRATIONS.glob('*.sql'):
@@ -192,11 +198,16 @@ class DatabaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'changed'):
                 migrate(self.dsn,folder)
             shutil.copyfile(MIGRATIONS/first.name,first)
-            (folder/'004_broken.sql').write_text('CREATE TABLE tmb.should_rollback(id int); SELECT missing_column;')
+            (folder/'005_broken.sql').write_text('CREATE TABLE tmb.should_rollback(id int); SELECT missing_column;')
             with self.assertRaises(psycopg.errors.UndefinedColumn):
                 migrate(self.dsn,folder)
-            self.assertIsNone(self.execute("SELECT to_regclass('tmb.should_rollback') AS name")[0]['name'])
-            self.assertEqual(len(self.execute('SELECT * FROM public.tmb_schema_migrations')),3)
+            self.assertIsNone(self.execute("SELECT to_regclass('tmb.should_rollback')")[0][0])
+            self.assertEqual(len(self.execute('SELECT * FROM public.tmb_schema_migrations')),
+                             migration_count)
+
+    def test_empty_repair_refuses_databases_with_applied_migrations(self):
+        with self.assertRaisesRegex(ValueError, 'migracions registrades'):
+            repair_empty_application_tables(self.dsn)
 
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
 # Solo para extracción de imágenes; BM25 no necesita estas dependencias.
 Pillow>=12.3,<13
 pydantic>=2.13,<3
+argostranslate>=1.9.6,<2

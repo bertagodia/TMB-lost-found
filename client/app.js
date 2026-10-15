@@ -1,4 +1,5 @@
 import { getOrigin } from './location-assignment.js';
+import { getLanguage, initializeLocalization, translateText } from './i18n.js';
 
 const OPTIONS = await fetch('./form-options.json').then(response => {
   if (!response.ok) throw new Error('No es poden carregar les opcions del formulari.');
@@ -45,6 +46,7 @@ async function citizenSearch(save=false){
   $('#citizenConfirmation').hidden=false;$('#citizenConfirmation').textContent='Cercant…';
   $('#searchButton').disabled=true;$('.citizen-submit').disabled=true;
   try{
+    payload.description=await translateText(payload.description,getLanguage(),'en');
     let result;
     if(save){
       const signature=JSON.stringify(payload);
@@ -94,7 +96,16 @@ function validStep(step) {
 function goToStep(step){if(step>state.step&&Array.from({length:step-1},(_,i)=>i+1).some(previous=>!validStep(previous))){showToast(state.step===1?'Indica l’estació o cotxera i identifica el vehicle.':state.step===2?'Cal confirmar les dues fotografies.':'Completa els camps i confirma que els has revisat.');return}state.step=step;$$('.view').forEach(view=>view.classList.toggle('active',Number(view.dataset.view)===step));$$('.step').forEach(item=>item.classList.toggle('active',Number(item.dataset.step)<=step));$('#backButton').hidden=step===1;$('#nextButton').textContent=step===1?'Comença amb el vehicle':step===2?'Continuar amb els detalls':step===3?'Revisar registre':'Guardar i enviar';$('#nextButton').disabled=step===1?!validStep(1):step===2?!validStep(2):false;if(step===4){state.details={colors:selectedColors('color'),objectType:$('#objectType').value,material:$('#material').value,description:$('#description').value.trim()};renderReview()}if(step===3)autoExtract();window.scrollTo({top:0,behavior:'smooth'})}
 let pendingSubmission=null;
 async function submitRecord() {
-  const body={vehicle:state.vehicle,origin:getOrigin(),photos:state.photos,details:state.details,
+  $('#nextButton').disabled=true;
+  let description;
+  try {
+    description=await translateText(state.details.description,getLanguage(),'en');
+  } catch(error) {
+    showToast(`No s’ha pogut traduir la descripció: ${error.message}. El registre no s’ha enviat.`);
+    $('#nextButton').disabled=false;
+    return;
+  }
+  const body={vehicle:state.vehicle,origin:getOrigin(),photos:state.photos,details:{...state.details,description},
     extractionId:state.extraction?.id||null,reviewed:true,status:'pending'};
   const signature=JSON.stringify(body);
   if(!pendingSubmission||pendingSubmission.signature!==signature)pendingSubmission={signature,record:{...body,id:createId(),capturedAt:new Date().toISOString()}};
@@ -188,6 +199,7 @@ async function autoExtract(force=false){
 }
 
 populateColors('color');populateSelect('objectType',CONFIG.objectTypes);populateSelect('material',CONFIG.materials);populateColors('citizenColor');populateSelect('citizenObjectType',CONFIG.objectTypes);updatePendingCount();setConnection();$('#staffTab').addEventListener('click',()=>setAudienceTab('staff'));$('#citizenTab').addEventListener('click',()=>setAudienceTab('citizen'));$('#matchTab').addEventListener('click',()=>setAudienceTab('match'));$('#citizenDescription').addEventListener('input',event=>$('#citizenDescriptionCount').textContent=event.target.value.length);$('#citizenPhoto').addEventListener('change',event=>updateCitizenPhoto(event.target.files[0]));$('#removeCitizenPhoto').addEventListener('click',()=>{$('#citizenPhoto').value='';updateCitizenPhoto(null)});$('#citizenForm').addEventListener('submit',saveCitizenReport);$('#pendingButton').addEventListener('click',openRequests);$('#closeRequestsButton').addEventListener('click',()=>$('#requestsDialog').close());$('#requestsDialog').addEventListener('click',event=>{if(event.target===$('#requestsDialog'))$('#requestsDialog').close()});$('#scanNfcButton').addEventListener('click',readNfc);$('#manualVehicleButton').addEventListener('click',()=>{const line=$('#manualLine').value.trim();const vehicle=$('#manualVehicle').value.trim();if(!line||!vehicle)return showToast('Escriu la línia i el vehicle per continuar.');setVehicle({line,vehicle,source:'manual'})});$('#photoInput').addEventListener('change',event=>{const file=event.target.files[0];if(file)inspectPhoto(file,state.activePhoto)});$$('.photo-button').forEach(button=>button.addEventListener('click',()=>openPhoto(Number(button.dataset.photo))));$('#description').addEventListener('input',event=>$('#descriptionCount').textContent=event.target.value.length);$('#nextButton').addEventListener('click',()=>state.step===4?submitRecord():goToStep(state.step+1));$('#backButton').addEventListener('click',()=>goToStep(state.step-1));$$('.step').forEach(button=>button.addEventListener('click',()=>goToStep(Number(button.dataset.step))));window.addEventListener('tmb:origin-change',()=>{if(state.step===1)$('#nextButton').disabled=!validStep(1)});window.addEventListener('online',()=>{setConnection();syncQueue()});window.addEventListener('offline',setConnection);syncQueue();
+initializeLocalization().catch(error=>showToast(`No s’ha pogut activar l’idioma desat: ${error.message}`));
 $('#retryExtraction').addEventListener('click',()=>autoExtract(true));
 for(const [key,id] of [['colors','color'],['objectType','objectType'],['material','material'],['description','description']]){
   $('#'+id).addEventListener('input',()=>{fieldVersions[key]++;$('#fieldsReviewed').checked=false;});

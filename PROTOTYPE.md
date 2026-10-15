@@ -23,9 +23,13 @@ This is a local development application, not a public TMB service.
 
 The model analyzes **only the first photo**. Both object views are stored. The
 unmerged two-view experiment is not part of this prototype/database integration.
-The existing form labels remain placeholders; generated descriptions are English.
-Search is lexical, so use wording present in the reviewed description or select
-object type/colors. There is no general multilingual/semantic translation layer.
+The interface supports Catalan, Spanish and English. It translates visible UI
+copy and free-text descriptions locally with Argos Translate; search and saved
+descriptions are sent in English for lexical matching. Type, material and color
+values remain the canonical form labels validated by the backend. Install the
+Catalan-English and Spanish-English Argos models once as described in SETUP.md.
+If translation fails, the form retains the original text and does not submit it
+as English. Ollama remains necessary only for image extraction.
 
 Location and loss date are saved with a declaration. Free-text location is not
 silently interpreted as a confirmed line, and registration time/vehicle are not

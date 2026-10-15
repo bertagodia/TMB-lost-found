@@ -173,7 +173,7 @@ def extract_image(image_path: str | Path, *, model: str = DEFAULT_MODEL,
 
 
 def request_json(images, *, schema, prompt, model=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT,
-                 keep_alive=None, metrics=None):
+                 keep_alive=None, metrics=None, user_content=None):
     """Shared local-only transport; callers validate their own task schema."""
     if not model.strip() or 'cloud' in model.casefold() or '/' in model:
         raise ValueError('Indica un modelo local con visión.')
@@ -184,8 +184,8 @@ def request_json(images, *, schema, prompt, model=DEFAULT_MODEL, timeout=DEFAULT
         'options': {'temperature': 0},
         'messages': [
             {'role': 'system', 'content': prompt + '\n' + json.dumps(schema)},
-            {'role': 'user', 'content': 'Extrae los atributos del objeto de la foto.',
-             'images': images},
+            {'role': 'user', 'content': user_content or 'Extrae los atributos del objeto de la foto.',
+             **({'images': images} if images else {})},
         ],
     }
     if keep_alive is not None:

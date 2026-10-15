@@ -19,6 +19,7 @@ from search.form_extraction import FormFields, FORM_PROMPT_VERSION, extract_form
 from search.extraction import PREPROCESS_VERSION
 from search.pipeline import model_digest
 from search.settings import DEFAULT_MODEL
+from search.translation import translate_texts
 from search.storage import write_json
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,6 +97,12 @@ class Application:
             return {**result, 'cached': False}
         finally:
             self.extraction_lock.release()
+
+    def translate(self, payload):
+        texts = payload.get('texts')
+        source_language = payload.get('source')
+        target_language = payload.get('target')
+        return {'translations': translate_texts(texts, source_language, target_language)}
 
     def submit(self, record):
         object_id = record.get('id')
@@ -180,6 +187,7 @@ class Handler(BaseHTTPRequestHandler):
             except psycopg.Error:
                 return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
+                 '/i18n.js': 'i18n.js',
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
                  '/match.js': 'match.js', '/match.css': 'match.css',
                  '/form-options.json': 'form-options.json',
@@ -209,6 +217,8 @@ class Handler(BaseHTTPRequestHandler):
             path = urlsplit(self.path).path
             if path == '/api/extract':
                 return self.respond(200, self.server.app.extract(payload))
+            if path == '/api/translate':
+                return self.respond(200, self.server.app.translate(payload))
             if path == '/lost-found':
                 return self.respond(200, self.server.app.submit(payload))
             operations = {'/api/inventory':'inventory','/api/review':'review',

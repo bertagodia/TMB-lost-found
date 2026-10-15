@@ -131,6 +131,30 @@ tardar varios minutos. Si no conecta con Ollama, abre su aplicación. Si no tien
 una aplicación o servicio activo, abre **otra terminal**, ejecuta `ollama serve`
 y déjala abierta. No necesitas ejecutar `ollama run`.
 
+Instala también los modelos ligeros de traducción Argos. Solo se descargan una vez;
+la traducción posterior es local y no requiere Ollama.
+
+**Windows — PowerShell:**
+```powershell
+.\.venv\Scripts\argospm.exe update
+.\.venv\Scripts\argospm.exe install translate-ca_en
+.\.venv\Scripts\argospm.exe install translate-es_en
+.\.venv\Scripts\argospm.exe install translate-en_es
+```
+
+**macOS / Linux:**
+```bash
+./.venv/bin/argospm update
+./.venv/bin/argospm install translate-ca_en
+./.venv/bin/argospm install translate-es_en
+./.venv/bin/argospm install translate-en_es
+```
+
+Estas parejas cubren la entrada catalana y castellana hacia inglés, además de
+la interfaz en inglés. Argos encadena modelos mediante inglés para el resto de
+combinaciones. Los modelos ocupan mucho menos que el modelo de visión, aunque el
+tamaño exacto depende de la versión descargada.
+
 ## 5. Iniciar la base de datos y el servidor
 
 Abre Docker Desktop si está cerrado. En la terminal del proyecto, configura una
