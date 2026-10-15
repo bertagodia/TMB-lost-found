@@ -23,6 +23,29 @@ from search.storage import write_json
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_REQUEST = 58 * 1024 * 1024
+LOCATION_ASSIGNMENTS = json.loads((ROOT / 'client' / 'location-assignment-data.json').read_text(encoding='utf-8'))
+
+
+def origin_metadata(record):
+    if 'origin' not in record:
+        return dict(origin_kind=None, origin_location=None, origin_destination=None)
+    origin = record['origin']
+    if not isinstance(origin, dict) or set(origin) != {'kind', 'location', 'destination'}:
+        raise ValueError('Origen invàlid.')
+    kind, location, destination = origin['kind'], origin['location'], origin['destination']
+    if any(not isinstance(value, str) or not value.strip() for value in (kind, location, destination)):
+        raise ValueError('Cal indicar l’origen i l’estació de destinació.')
+    location, destination = location.strip(), destination.strip()
+    if kind == 'station':
+        assigned = next((central for central, stations in LOCATION_ASSIGNMENTS['stations'].items()
+                         if location in stations), None)
+    elif kind == 'depot':
+        assigned = LOCATION_ASSIGNMENTS['depots'].get(location)
+    else:
+        raise ValueError('El tipus d’origen ha de ser estació o cotxera.')
+    if assigned != destination:
+        raise ValueError('L’estació de destinació no correspon a l’origen seleccionat.')
+    return dict(origin_kind=kind, origin_location=location, origin_destination=destination)
 
 
 def decode_image(photo):
@@ -78,6 +101,7 @@ class Application:
         object_id = record.get('id')
         if not isinstance(object_id, str) or not object_id.strip() or len(object_id) > 160:
             raise ValueError('ID del registre invàlid.')
+        origin_metadata(record)
         if record.get('extractionId') and record.get('reviewed') is not True:
             raise ValueError('Confirma la revisió dels camps extrets abans de desar.')
         details = dict(record['details'])
@@ -157,7 +181,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
-                 '/form-options.json': 'form-options.json'}
+                 '/form-options.json': 'form-options.json',
+                 '/location-assignment.js': 'location-assignment.js',
+                 '/location-assignment-data.json': 'location-assignment-data.json',
+                 '/location-assignment.css': 'location-assignment.css'}
         if path not in files:
             return self.respond(404, {'error': 'No trobat.'})
         file = ROOT / 'client' / files[path]

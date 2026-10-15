@@ -15,7 +15,8 @@ class ConflictError(ValueError):
 
 
 METADATA = {'client_registered_at', 'registered_line', 'registered_vehicle', 'vehicle_source',
-            'found_date', 'date_quality', 'found_line', 'found_direction', 'found_location', 'received_at'}
+            'found_date', 'date_quality', 'found_line', 'found_direction', 'found_location', 'received_at',
+            'origin_kind', 'origin_location', 'origin_destination'}
 
 
 def reviewed_fields(details):

@@ -11,9 +11,9 @@ This is a local development application, not a public TMB service.
 
 | Flow | Implemented behavior |
 |---|---|
-| Register a found object | Enter vehicle/line, upload two views, extract the first photo or choose manual entry, review multiple colors/type/material/description, save. |
+| Register a found object | Select the origin (metro station or depot); the destination central station is assigned automatically. Enter vehicle/line, upload two views, extract the first photo or choose manual entry, review multiple colors/type/material/description, save. |
 | Image extraction | Local `qwen3-vl:2b-instruct`; JPEG including MPO, PNG and static WebP; original bytes retained. Drafts require human review. Identical image/model/prompt combinations reuse cached model output. |
-| Durable storage | Original images live in the server data directory; PostgreSQL stores references, hashes, extraction attempts, original submissions and append-only reviews. |
+| Durable storage | Original images live in the server data directory; PostgreSQL stores references, hashes, extraction attempts, origin and assigned destination, original submissions and append-only reviews. |
 | Server inventory | “Inventari del servidor” lists up to 200 recent objects, including records created from another browser. Correct fields, reject a review, mark returned, or reactivate. |
 | Citizen search | “Soc usuari” searches current approved, registered objects using text, optional exact type and selected colors. Results include a photo, reviewed fields and reference ID. |
 | Loss report | “Desar i cercar” stores the declaration and optional contact information in separate tables and returns candidates. “Cercar sense desar” runs a query without storing a declaration. |
@@ -34,7 +34,7 @@ A result is a candidate, not verified ownership or an authorized return.
 
 ## Quick test on the running instance
 
-1. Open **Operaris TMB**, enter `TEST` / `001`, and upload the two bottle photos.
+1. Open **Operaris TMB**, select an origin station or depot, confirm its automatically assigned destination, enter `TEST` / `001`, and upload the two bottle photos.
 2. Enter **Detalls**. Wait for extraction or click **Omplir manualment**. A cold
    model can take longer; the successful live bottle test took about 37 seconds.
 3. Correct all fields, mark the review checkbox, review the summary and save.

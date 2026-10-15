@@ -64,6 +64,23 @@ class PostgresTests(unittest.TestCase):
         self.assertTrue(restarted.photo_bytes(photo_id).startswith(b'\xff\xd8'))
         self.assertTrue(restarted.submit(self.record)['duplicate'])
 
+    def test_registration_origin_is_assigned_and_persisted(self):
+        record={**self.record,'origin':dict(kind='station',location='Alfons X',destination='Sagrada Família')}
+        self.app.submit(record)
+        stored=self.app.repo.get_object('test-record')
+        self.assertEqual(stored['origin_kind'],'station')
+        self.assertEqual(stored['origin_location'],'Alfons X')
+        self.assertEqual(stored['origin_destination'],'Sagrada Família')
+        depot={**self.record,'id':'depot-record','origin':dict(
+            kind='depot',location='Triangle Ferroviari (La Sagrera)',destination='La Sagrera')}
+        self.app.submit(depot)
+        stored_depot=self.app.repo.get_object('depot-record')
+        self.assertEqual(stored_depot['origin_kind'],'depot')
+        self.assertEqual(stored_depot['origin_destination'],'La Sagrera')
+        with self.assertRaisesRegex(ValueError,'no correspon'):
+            self.app.submit({**record,'id':'wrong-destination','origin':{
+                'kind':'depot','location':'Triangle Ferroviari (La Sagrera)','destination':'Espanya'}})
+
     def test_extract_cache_adoption_and_reuse_for_another_object(self):
         first,second=self.extraction(),self.extraction()
         self.assertNotEqual(first['id'],second['id'])

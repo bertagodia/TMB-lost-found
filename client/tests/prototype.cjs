@@ -10,7 +10,7 @@ async function addPhoto(page,slot){const chooser=page.waitForEvent('filechooser'
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  try{
   const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(base);await page.locator('#manualLine').fill('TEST');await page.locator('#manualVehicle').fill('PROTO');await page.locator('#manualVehicleButton').click();await page.locator('#nextButton').click();await addPhoto(page,0);await addPhoto(page,1);
+  await page.goto(base);await page.locator('#depotOriginTab').click();await page.locator('#originLocation').selectOption('Triangle Ferroviari (La Sagrera)');await page.waitForFunction(()=>document.getElementById('originDestination').value==='La Sagrera');await page.locator('#stationOriginTab').click();await page.locator('#originLocation').selectOption('Alfons X');await page.waitForFunction(()=>document.getElementById('originDestination').value==='Sagrada Família');await page.locator('#manualLine').fill('TEST');await page.locator('#manualVehicle').fill('PROTO');await page.locator('#manualVehicleButton').click();await page.locator('#nextButton').click();await addPhoto(page,0);await addPhoto(page,1);
   if(process.env.MOCK_EXTRACTION==='1')await page.route('**/api/extract',route=>route.fulfill({status:400,json:{error:'Manual-path test'}}));
   const extraction=page.waitForResponse(r=>r.url().endsWith('/api/extract'),{timeout:310000});
   await page.locator('#nextButton').click();const extracted=await extraction;
@@ -18,7 +18,7 @@ async function addPhoto(page,slot){const chooser=page.waitForEvent('filechooser'
   await page.waitForFunction(()=>!document.getElementById('retryExtraction').disabled);
   for(const checkbox of await page.locator('#color input').all())await checkbox.uncheck();
   for(const color of ['Gris','Taronja','Negre'])await page.locator(`#color input[value="${color}"]`).check();
-  await page.locator('#objectType').selectOption('Ampolla');await page.locator('#material').selectOption('Metall');await page.locator('#description').fill('Prototype test bottle: orange grip, black cap, silver body.');await page.locator('#fieldsReviewed').check();await page.locator('#nextButton').click();
+  await page.locator('#objectType').selectOption('Ampolla');await page.locator('#material').selectOption('Metall');await page.locator('#description').fill('Prototype test bottle: orange grip, black cap, silver body.');await page.locator('#fieldsReviewed').check();await page.locator('#nextButton').click();assert((await page.locator('#reviewList').textContent()).includes('Alfons X'));assert((await page.locator('#reviewList').textContent()).includes('Sagrada Família'));
   const savedResponse=page.waitForResponse(r=>r.url().endsWith('/lost-found'));await page.locator('#nextButton').click();const saved=await savedResponse;assert.equal(saved.status(),200);const record=await saved.json();assert.equal(record.status,'stored-postgres');
   // Separate browser context proves results are server-backed, not local history.
   const citizen=await browser.newPage({viewport:{width:390,height:844}});await citizen.goto(base);await citizen.locator('#citizenTab').click();await citizen.locator('#citizenDescription').fill('orange bottle');await citizen.locator('#citizenObjectType').selectOption('Ampolla');await citizen.locator('#citizenColor input[value="Taronja"]').check();await citizen.locator('#searchButton').click();
@@ -27,7 +27,7 @@ async function addPhoto(page,slot){const chooser=page.waitForEvent('filechooser'
   await citizen.locator('#citizenName').fill('Prototype Test');await citizen.locator('#citizenEmail').fill('prototype@example.invalid');
   const reportResponse=citizen.waitForResponse(r=>r.url().endsWith('/api/lost-reports'));await citizen.locator('.citizen-submit').click();const report=await reportResponse;assert.equal(report.status(),200);assert.equal((await report.json()).status,'stored-postgres');
   await citizen.screenshot({path:process.env.TEST_SCREENSHOT||'/tmp/tmb-prototype-citizen.png',fullPage:true});
-  await page.locator('#inventoryButton').click();await page.waitForFunction(id=>document.getElementById('inventoryList').textContent.includes(id),record.id);
+  await page.locator('#inventoryButton').click();await page.waitForFunction(id=>document.getElementById('inventoryList').textContent.includes(id),record.id);assert((await page.locator('#inventoryList').textContent()).includes('Alfons X → Sagrada Família'));
   let card=page.locator('#inventoryList article').filter({hasText:record.id});await card.getByRole('button',{name:'Revisar / corregir'}).click();await page.locator('#editDescription').fill('Prototype corrected bottle.');
   const reviewed=page.waitForResponse(r=>r.url().endsWith('/api/review'));await page.locator('#editForm button[type="submit"]').click();assert.equal((await reviewed).status(),200);
   await page.waitForFunction(()=>!document.getElementById('editDialog').open);

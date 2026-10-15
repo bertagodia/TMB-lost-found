@@ -82,6 +82,7 @@ para poder extraer. Las cardinalidades del diagrama muestran el estado final.
 | `registered_line` | `text` | Opcional. Línea indicada en el formulario del operario. |
 | `registered_vehicle` | `text` | Opcional. Vehículo indicado en el formulario. |
 | `vehicle_source` | `text` | Opcional. `manual` o `nfc`; no identifica al operario. |
+| `origin_kind`, `origin_location`, `origin_destination` | `text` | Opcionales en registros antiguos. Nuevas altas guardan si el origen es una estación o cochera, su nombre y la estación central asignada. |
 | `found_date` | `date` | Opcional. Día real del hallazgo, si se conoce. |
 | `date_quality` | `text` | Sí. `unknown`, `approximate` o `confirmed`. |
 | `found_line` / `found_direction` | `text` | Opcionales. Contexto de hallazgo confirmado o informado explícitamente. |

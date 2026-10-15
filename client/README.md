@@ -18,6 +18,8 @@ ni separació real de permisos. No és un servei públic de TMB.
 ## Fitxers
 
 - `index.html`, `app.js`, `styles.css`: interfície sense framework.
+- `location-assignment-data.json`, `location-assignment.js`, `location-assignment.css`:
+  origins (stations/depot) and their assigned destination stations.
 - `form-options.json`: vocabulari compartit amb backend.
 - `tests/prototype.cjs`: prova Playwright del flux complet amb servidor real.
 - `manifest.webmanifest`: metadades de la interfície.

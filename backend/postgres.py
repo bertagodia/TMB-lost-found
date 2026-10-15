@@ -12,7 +12,7 @@ from search import FoundObject, SearchEngine, SearchQuery
 from search.form_extraction import FormFields, FORM_PROMPT_VERSION, OPTIONS
 from search.extraction import PREPROCESS_VERSION, _prepare_image
 from search.pipeline import model_digest
-from .server import Application, decode_image
+from .server import Application, decode_image, origin_metadata
 
 
 def text(value, limit, *, required=False):
@@ -121,10 +121,13 @@ class PostgresApplication(Application):
         metadata = dict(client_registered_at=timestamp(record.get('capturedAt')),
             registered_line=text(vehicle.get('line'),100),registered_vehicle=text(vehicle.get('vehicle'),100),
             vehicle_source=vehicle.get('source'))
+        metadata.update(origin_metadata(record))
         if metadata['vehicle_source'] not in (None,'manual','nfc'):
             raise ValueError('Origen del vehicle invàlid.')
         extraction_id = text(record.get('extractionId'),160)
-        request_hash = hash_json(dict(details=details,photos=hashes,metadata=metadata,extraction_id=extraction_id))
+        request_metadata = {key:value for key,value in metadata.items()
+                            if not key.startswith('origin_') or value is not None}
+        request_hash = hash_json(dict(details=details,photos=hashes,metadata=request_metadata,extraction_id=extraction_id))
         staged = []
         try:
             with self.repo.connect() as conn:
@@ -165,6 +168,7 @@ class PostgresApplication(Application):
     def inventory(self, payload):
         with self.repo.connect() as conn:
             rows = conn.execute('''SELECT o.id,o.status,o.created_at,o.registered_line,o.registered_vehicle,
+                o.origin_kind,o.origin_location,o.origin_destination,
                 r.revision,r.status AS review_status,r.object_type,r.colors,r.material,r.description,
                 p.id AS photo_id FROM tmb.found_objects o
                 LEFT JOIN LATERAL (SELECT * FROM tmb.object_reviews WHERE object_id=o.id ORDER BY revision DESC LIMIT 1) r ON true

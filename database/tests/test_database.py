@@ -181,7 +181,7 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(len(self.repo.get_object('demo-wp3-bottle')['reviews']),2)
 
     def test_migrations_repeat_checksum_and_atomic_failure(self):
-        self.assertEqual(migrate(self.dsn),2)
+        self.assertEqual(migrate(self.dsn),3)
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)
             for migration in MIGRATIONS.glob('*.sql'):
@@ -192,11 +192,11 @@ class DatabaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'changed'):
                 migrate(self.dsn,folder)
             shutil.copyfile(MIGRATIONS/first.name,first)
-            (folder/'003_broken.sql').write_text('CREATE TABLE tmb.should_rollback(id int); SELECT missing_column;')
+            (folder/'004_broken.sql').write_text('CREATE TABLE tmb.should_rollback(id int); SELECT missing_column;')
             with self.assertRaises(psycopg.errors.UndefinedColumn):
                 migrate(self.dsn,folder)
             self.assertIsNone(self.execute("SELECT to_regclass('tmb.should_rollback') AS name")[0]['name'])
-            self.assertEqual(len(self.execute('SELECT * FROM public.tmb_schema_migrations')),2)
+            self.assertEqual(len(self.execute('SELECT * FROM public.tmb_schema_migrations')),3)
 
 
 if __name__ == '__main__':
