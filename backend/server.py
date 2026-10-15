@@ -1,18 +1,12 @@
-"""Local WP4 server and Ollama adapter: python -m backend.server --port 8001."""
+"""Local FastAPI server and Ollama adapter: python -m backend.server --port 8001."""
 import argparse
 import base64
 import binascii
 import hashlib
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-import mimetypes
-import os
-import psycopg
 from pathlib import Path
-import secrets
 import tempfile
 import threading
-from urllib.parse import urlsplit
 
 from search.extraction import MAX_BYTES, _prepare_image
 from search.form_extraction import FormFields, FORM_PROMPT_VERSION, extract_form
@@ -22,7 +16,6 @@ from search.settings import DEFAULT_MODEL
 from search.storage import write_json
 
 ROOT = Path(__file__).resolve().parent.parent
-MAX_REQUEST = 58 * 1024 * 1024
 
 LOCATION_ASSIGNMENTS = json.loads((ROOT / 'client' / 'location-assignment-data.json').read_text(encoding='utf-8'))
 
@@ -139,116 +132,22 @@ class Application:
         return {'id': object_id, 'queued': False, 'status': 'received-local'}
 
 
-class Handler(BaseHTTPRequestHandler):
-    def respond(self, status, body, content_type='application/json; charset=utf-8'):
-        raw = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode()
-        self.send_response(status)
-        self.send_header('Content-Type', content_type)
-        self.send_header('Content-Length', str(len(raw)))
-        self.send_header('Cache-Control', 'no-store')
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('X-Frame-Options', 'DENY')
-        self.end_headers()
-        self.wfile.write(raw)
-
-    def allowed(self, post=False):
-        hosts = {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
-        if self.headers.get('Host') not in hosts:
-            return False
-        if self.headers.get('Origin') and self.headers['Origin'] not in {'http://' + h for h in hosts}:
-            return False
-        return not post or secrets.compare_digest(self.headers.get('X-Local-Token', ''), self.server.token)
-
-    def do_GET(self):
-        if not self.allowed():
-            return self.respond(403, {'error': 'Accés local únicament.'})
-        path = urlsplit(self.path).path
-        if path == '/api/health':
-            try:
-                if hasattr(self.server.app,'repo'):
-                    with self.server.app.repo.connect() as conn:
-                        conn.execute('SELECT 1')
-                return self.respond(200, {'model': self.server.app.model, 'status': 'ready',
-                    'storage':'postgres' if hasattr(self.server.app,'repo') else 'json'})
-            except psycopg.Error:
-                return self.respond(503, {'error':'PostgreSQL no està disponible.'})
-        if path.startswith('/api/photos/') and hasattr(self.server.app,'photo_bytes'):
-            try:
-                return self.respond(200,self.server.app.photo_bytes(path.removeprefix('/api/photos/')),'image/jpeg')
-            except (OSError,ValueError):
-                return self.respond(404,{'error':'Fotografia no disponible.'})
-            except psycopg.Error:
-                return self.respond(503,{'error':'PostgreSQL no està disponible.'})
-        files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
-                 **{('/'+name):name for name in ('location-assignment.js','location-assignment.css','match.js','match.css','location-assignment-data.json')},
-                 '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
-                 '/form-options.json': 'form-options.json', '/transit-options.json':'transit-options.json'}
-        if path not in files:
-            return self.respond(404, {'error': 'No trobat.'})
-        file = ROOT / 'client' / files[path]
-        raw = file.read_bytes()
-        if file.name == 'index.html':
-            raw = raw.replace(b'__LOCAL_TOKEN__', self.server.token.encode())
-        self.respond(200, raw, (mimetypes.guess_type(file.name)[0] or 'application/octet-stream') + '; charset=utf-8')
-
-    def do_POST(self):
-        if not self.allowed(post=True):
-            return self.respond(403, {'error': 'Recarrega la pàgina per continuar.'})
-        try:
-            size = int(self.headers.get('Content-Length', '0'))
-            if not 0 < size <= MAX_REQUEST:
-                return self.respond(413, {'error': 'Petició massa gran o buida.'})
-            if self.headers.get_content_type() != 'application/json':
-                return self.respond(415, {'error': 'Cal enviar JSON.'})
-            payload = json.loads(self.rfile.read(size))
-            if not isinstance(payload, dict):
-                raise ValueError('Cal enviar un objecte JSON.')
-            path = urlsplit(self.path).path
-            if path == '/api/extract':
-                return self.respond(200, self.server.app.extract(payload))
-            if path == '/lost-found':
-                return self.respond(200, self.server.app.submit(payload))
-            operations = {'/api/matches':'matches','/api/inventory':'inventory','/api/review':'review',
-                '/api/status':'status','/api/search':'search','/api/lost-reports':'lost_report'}
-            if path in operations and hasattr(self.server.app,operations[path]):
-                return self.respond(200,getattr(self.server.app,operations[path])(payload))
-            self.respond(404, {'error': 'No trobat.'})
-        except psycopg.IntegrityError:
-            self.respond(400, {'error':'Les dades no compleixen el contracte. Revisa els camps i torna-ho a provar.'})
-        except psycopg.Error:
-            self.respond(503, {'error':'PostgreSQL no està disponible. Les dades no s’han confirmat.'})
-        except BlockingIOError as exc:
-            self.respond(409, {'error': str(exc)})
-        except FileExistsError as exc:
-            self.respond(409, {'error': str(exc)})
-        except (ValueError, KeyError, TypeError, OSError, RuntimeError) as exc:
-            from database.repository import ConflictError
-            self.respond(409 if isinstance(exc,ConflictError) else 400, {'error': str(exc)})
-
-    def log_message(self, format, *args):
-        pass
+# Transport is defined separately so the existing services and cache format remain stable.
+def create_app(**kwargs):
+    from .api import create_app as factory
+    return factory(**kwargs)
 
 
 def main():
+    import uvicorn
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=8001)
     parser.add_argument('--model', default=DEFAULT_MODEL)
     parser.add_argument('--data-dir', type=Path, default=Path('artifacts/wp4'))
     args = parser.parse_args()
-    try:
-        with ThreadingHTTPServer(('127.0.0.1', args.port), Handler) as server:
-            if os.environ.get('DATABASE_URL'):
-                from database.migrate import migrate
-                from .postgres import PostgresApplication
-                migrate(os.environ['DATABASE_URL'])
-                server.app = PostgresApplication(args.data_dir,os.environ['DATABASE_URL'],args.model)
-            else:
-                server.app = Application(args.data_dir, args.model)
-            server.token = secrets.token_hex(32)
-            print(f'WP4 + Ollama: http://127.0.0.1:{server.server_port}', flush=True)
-            server.serve_forever()
-    except KeyboardInterrupt:
-        pass
+    app = create_app(data_dir=args.data_dir,model=args.model,port=args.port)
+    print(f'TMB FastAPI: http://127.0.0.1:{args.port} — /docs',flush=True)
+    uvicorn.run(app,host='127.0.0.1',port=args.port,proxy_headers=False)
 
 
 if __name__ == '__main__':

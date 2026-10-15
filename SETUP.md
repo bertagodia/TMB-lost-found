@@ -299,3 +299,13 @@ it returned. These actions are saved in PostgreSQL. Origin selection in step 1
 assigns a central but does not mark the object as sent. See the step-by-step
 [operations guide](docs/MAIN_INTEGRATION.md) for details. The server automatically
 applies migrations through 005; keep existing migration files unchanged.
+
+## FastAPI: documentation and development tests
+
+The launch command remains `python -m backend.server --port 8001`.
+The backend now uses FastAPI/Uvicorn and serves API documentation at
+http://127.0.0.1:8001/docs. Existing forms and database records work unchanged.
+After pulling this version, rerun `python -m pip install -r backend/requirements.txt`
+in your virtual environment to install the new server dependencies.
+For automated backend tests, install `backend/requirements-dev.txt` instead.
+See [backend/FASTAPI.md](backend/FASTAPI.md) for endpoints and local-token usage.

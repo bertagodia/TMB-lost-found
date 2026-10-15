@@ -1,4 +1,4 @@
-# Backend local de WP4 + extracción
+# Backend FastAPI de WP4 + extracción
 
 **Modo integrado:** [PROTOTYPE.md](../PROTOTYPE.md) documenta PostgreSQL, inventario,
 revisiones, búsqueda ciudadana y declaraciones. Define `DATABASE_URL` para activarlo.
@@ -16,7 +16,9 @@ python -m backend.server --port 8001
 Abre http://127.0.0.1:8001. `--model` selecciona otro modelo local y `--data-dir`
 cambia `artifacts/wp4/`, la carpeta de datos predeterminada. Las rutas locales se
 resuelven desde el directorio de ejecución. El servidor escucha solo en loopback;
-esta versión no tiene autenticación de usuarios ni integración PostgreSQL.
+no hay autenticación de usuarios. PostgreSQL se activa con `DATABASE_URL`.
+La API usa FastAPI/Uvicorn; consulta [el contrato y la transición](FASTAPI.md).
+La documentación interactiva está en http://127.0.0.1:8001/docs.
 
 ## Extracción automática
 
@@ -111,6 +113,7 @@ la búsqueda y sus resultados quedan para la siguiente integración.
 ## Verificación
 
 ```bash
+python -m pip install -r backend/requirements-dev.txt
 python -m unittest discover -s search/tests -v
 python -m unittest discover -s backend/tests -v
 node --check client/app.js

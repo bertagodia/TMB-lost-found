@@ -1,2 +1,4 @@
 -r ../search/requirements.txt
 -r ../database/requirements.txt
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
