@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import re
 
-CATALOGUE = json.loads((Path(__file__).resolve().parents[1]/'client/transit-options.json').read_text())
+CATALOGUE = json.loads((Path(__file__).resolve().parents[1]/'client/transit-options.json').read_text(encoding='utf-8'))
 
 
 def transit(mode=None, line=None):

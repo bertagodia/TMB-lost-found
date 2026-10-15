@@ -180,7 +180,7 @@ def create_app(*, dsn=None, data_dir=Path('artifacts/wp4'), model=DEFAULT_MODEL,
         def serve():
             path = ROOT/'client'/filename
             if filename=='index.html':
-                return HTMLResponse(path.read_text().replace('__LOCAL_TOKEN__',app.state.token))
+                return HTMLResponse(path.read_text(encoding='utf-8').replace('__LOCAL_TOKEN__',app.state.token))
             return Response(path.read_bytes(),media_type=mimetypes.guess_type(path.name)[0] or 'application/octet-stream')
         return serve
 

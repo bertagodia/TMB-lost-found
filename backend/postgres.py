@@ -18,7 +18,7 @@ from .server import Application, decode_image, origin_metadata, LOCATION_ASSIGNM
 from pathlib import Path
 
 # Compatibility mapping for queued two-field origins from the prior prototype.
-ORIGINS = json.loads((Path(__file__).resolve().parent.parent/'client/origin-options.json').read_text())
+ORIGINS = json.loads((Path(__file__).resolve().parent.parent/'client/origin-options.json').read_text(encoding='utf-8'))
 from .transit import finding, transit, calendar_date
 
 
