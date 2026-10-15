@@ -181,6 +181,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
+                 '/match.js': 'match.js', '/match.css': 'match.css',
                  '/form-options.json': 'form-options.json',
                  '/location-assignment.js': 'location-assignment.js',
                  '/location-assignment-data.json': 'location-assignment-data.json',
@@ -211,7 +212,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/lost-found':
                 return self.respond(200, self.server.app.submit(payload))
             operations = {'/api/inventory':'inventory','/api/review':'review',
-                '/api/status':'status','/api/search':'search','/api/lost-reports':'lost_report'}
+                '/api/status':'status','/api/search':'search','/api/lost-reports':'lost_report',
+                '/api/matches':'matches'}
             if path in operations and hasattr(self.server.app,operations[path]):
                 return self.respond(200,getattr(self.server.app,operations[path])(payload))
             self.respond(404, {'error': 'No trobat.'})

@@ -12,6 +12,13 @@ L’inventari permet corregir, rebutjar, marcar com a retornat i reactivar objec
 Les revisions es conserven i la cerca només mostra la darrera revisió aprovada
 d’objectes actius.
 
+La pestanya **Match** gestiona les coincidències desades al servidor: vincula
+objectes actius i aprovats amb declaracions obertes, mostra el contacte de les
+declaracions vinculades i desa ubicacions, enviaments i retorns a PostgreSQL.
+Cal executar el servidor integrat amb `DATABASE_URL` i obrir la interfície a
+`http://127.0.0.1:8001`; obrir `index.html` directament amb `file://` no connecta
+amb l’API. Aquesta instància local no té autenticació.
+
 El servidor escolta a localhost:8001. Les pestanyes encara no tenen autenticació
 ni separació real de permisos. No és un servei públic de TMB.
 

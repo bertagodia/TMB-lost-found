@@ -40,7 +40,7 @@ class DatabaseTests(unittest.TestCase):
 
     def setUp(self):
         with self.repo.connect() as conn:
-            conn.execute('TRUNCATE tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
+            conn.execute('TRUNCATE tmb.report_matches,tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
 
     def photo(self, position=1, digest='a'*64):
         return self.repo.create_photo(storage_key='fixtures/'+uuid4().hex+'.jpg',image_sha256=digest,

@@ -41,7 +41,7 @@ class PostgresTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.app=PostgresApplication(self.temp.name,self.dsn,'test-model')
         with self.app.repo.connect() as conn:
-            conn.execute('TRUNCATE tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
+            conn.execute('TRUNCATE tmb.report_matches,tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
         data=io.BytesIO();Image.new('RGB',(24,24),'orange').save(data,format='JPEG')
         self.photo=dict(data='data:image/jpeg;base64,'+base64.b64encode(data.getvalue()).decode())
         self.fields=dict(colors=['Taronja','Negre'],objectType='Ampolla',material='Metall',description='Orange bottle')
@@ -127,6 +127,38 @@ class PostgresTests(unittest.TestCase):
             photo=conn.execute("SELECT id FROM tmb.photos WHERE report_id='report-1'").fetchone()
         with self.assertRaises(FileNotFoundError):self.app.photo_bytes(photo['id'])
         with self.assertRaises(ConflictError):self.app.lost_report({**report,'description':'Different request'})
+
+    def test_match_lifecycle_persists_against_real_objects_and_reports(self):
+        self.app.submit(self.record)
+        report=dict(id='match-report',description='orange bottle',
+                    incident={'location':'Sants','lossDate':'2026-10-08'},
+                    contact={'name':'Match Test','email':'match@example.invalid'})
+        self.app.lost_report(report)
+
+        listed=self.app.matches(dict(action='list'))
+        self.assertEqual([row['id'] for row in listed['objects']],['test-record'])
+        self.assertEqual([row['id'] for row in listed['reports']],['match-report'])
+        self.assertNotIn('match@example.invalid',json.dumps(listed))
+
+        self.app.matches(dict(action='link',objectId='test-record',reportId='match-report'))
+        with self.assertRaises(ValueError):
+            self.app.matches(dict(action='link',objectId='test-record',reportId='match-report'))
+        linked=self.app.matches(dict(action='list'))['matches']
+        self.assertEqual(len(linked),1)
+        self.assertEqual(linked[0]['contact_email'],'match@example.invalid')
+        self.assertEqual(linked[0]['found_location'],None)
+
+        self.app.matches(dict(action='update',objectId='test-record',reportId='match-report',
+                              foundLocation='Sants',destination='Oficina d’objectes perduts'))
+        linked=self.app.matches(dict(action='list'))['matches'][0]
+        self.assertEqual(linked['found_location'],'Sants')
+        self.assertTrue(linked['sent_at'])
+        self.app.matches(dict(action='return',objectId='test-record',reportId='match-report'))
+        self.assertTrue(self.app.matches(dict(action='list'))['matches'][0]['returned_at'])
+        self.app.matches(dict(action='reopen',objectId='test-record',reportId='match-report'))
+        self.assertIsNone(self.app.matches(dict(action='list'))['matches'][0]['returned_at'])
+        self.app.matches(dict(action='unlink',objectId='test-record',reportId='match-report'))
+        self.assertEqual(self.app.matches(dict(action='list'))['matches'],[])
 
     def test_missing_model_records_failed_attempt_and_manual_entry_still_works(self):
         with patch('backend.postgres.model_digest',side_effect=RuntimeError('Model unavailable')):

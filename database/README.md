@@ -8,7 +8,8 @@ search view. PostgreSQL 17 and Python 3.11+ are the supported development setup.
 See [PROTOTYPE.md](../PROTOTYPE.md) for the complete flow. Migration 002 adds HTTP
 submission receipts, citizen reports/contacts and private reference-photo ownership;
 migration 003 stores each registration's station/depot origin and assigned central
-station. The original inventory repository remains independently usable.
+station. Migration 004 adds confirmed object/report matches and their return tracking.
+The original inventory repository remains independently usable.
 
 ## Start a local database
 

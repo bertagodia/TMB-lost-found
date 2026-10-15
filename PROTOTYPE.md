@@ -17,6 +17,7 @@ This is a local development application, not a public TMB service.
 | Server inventory | “Inventari del servidor” lists up to 200 recent objects, including records created from another browser. Correct fields, reject a review, mark returned, or reactivate. |
 | Citizen search | “Soc usuari” searches current approved, registered objects using text, optional exact type and selected colors. Results include a photo, reviewed fields and reference ID. |
 | Loss report | “Desar i cercar” stores the declaration and optional contact information in separate tables and returns candidates. “Cercar sense desar” runs a query without storing a declaration. |
+| Match tracking | “Match” links active approved objects to open loss reports in PostgreSQL; tracks finding location, destination and return status. The screen lists up to 200 newest objects/reports/links. Contact details are shown only after a link is confirmed. |
 | Reference image | An optional citizen image is stored privately as supporting material. It is **not** used to rank candidates in this version. |
 | Retries | Duplicate registration/report IDs with the same request are idempotent. Different content conflicts. Operator network failures can queue the original request locally, subject to browser capacity. |
 
@@ -41,7 +42,9 @@ A result is a candidate, not verified ownership or an authorized return.
 4. Open **Inventari del servidor**. Your object should appear there.
 5. In **Soc usuari**, search `bottle`, optionally choosing `Ampolla` and `Taronja`.
    Try **Cercar sense desar** or save a report using fictitious contact details.
-6. In the inventory, correct the description and search again. Mark the object
+6. Open **Match** to link the server object with the saved report, update its
+   location/destination and exercise the return/reopen controls.
+7. In the inventory, correct the description and search again. Mark the object
    returned or reject its review: it must disappear from fresh search results.
    Reactivating a returned object restores it only if its latest review is approved.
 
@@ -140,6 +143,7 @@ storage, stable retry IDs and compact local history; its test record is archived
 | `POST /api/status` | `{id,status}` → registered, returned or archived. |
 | `POST /api/search` | `{description,filters:{objectType,colors},lostDate}` → current candidates. |
 | `POST /api/lost-reports` | Current citizen payload → stored report plus candidates. |
+| `POST /api/matches` | `{action:"list"|"link"|"unlink"|"update"|"return"|"reopen",...}` → server-backed links and match workflow. |
 | `GET /api/photos/<id>` | Prepared JPEG preview of a currently searchable object's photo; never a staged or citizen-reference image. |
 
 POST requests use the page's `X-Local-Token` and same-origin checks. SQL is
@@ -154,6 +158,9 @@ for the next iteration's line priority, date format and citizen search refinemen
 
 - Localhost only; there are no accounts, operator/citizen authorization or public
   deployment controls. The tabs are not access-control boundaries.
+- Match return status belongs to an individual object/report link; it does not
+  change the inventory object's status. The relation is stored in
+  `tmb.report_matches`.
 - Human review remains necessary. A usable model result can still be wrong.
 - Browser offline storage has a size limit. Large unsent photos may not fit; the
   form then remains open for retry. Online saves do not depend on that quota.

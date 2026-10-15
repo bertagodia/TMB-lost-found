@@ -269,6 +269,106 @@ class PostgresApplication(Application):
         finally:
             self.discard_staged(staged)
 
+    def matches(self, payload):
+        action = text(payload.get('action'),20,required=True)
+        if action == 'list':
+            with self.repo.connect() as conn:
+                objects = conn.execute('''SELECT o.id,o.created_at,coalesce(o.received_at,o.created_at) AS received_at,
+                        o.found_location,r.object_type,r.colors,r.material,r.description
+                    FROM tmb.searchable_objects s
+                    JOIN tmb.found_objects o ON o.id=s.id
+                    JOIN tmb.object_reviews r ON r.id=s.review_id
+                    ORDER BY o.created_at DESC LIMIT 200''').fetchall()
+                reports = conn.execute('''SELECT id,original_description,lost_date,location_text,
+                        object_type,colors,created_at
+                    FROM tmb.lost_reports WHERE status='open'
+                    ORDER BY created_at DESC LIMIT 200''').fetchall()
+                links = conn.execute('''SELECT m.object_id,m.report_id,m.created_at,m.destination,m.sent_at,m.returned_at,
+                        o.status AS object_status,o.created_at AS object_created_at,
+                        coalesce(o.received_at,o.created_at) AS received_at,o.found_location,
+                        r.object_type,r.colors,r.material,r.description,
+                        lr.original_description AS report_description,lr.lost_date,
+                        lr.location_text,lr.created_at AS report_created_at,
+                        c.name AS contact_name,c.email AS contact_email,c.phone AS contact_phone
+                    FROM tmb.report_matches m
+                    JOIN tmb.found_objects o ON o.id=m.object_id
+                    LEFT JOIN LATERAL (
+                        SELECT object_type,colors,material,description FROM tmb.object_reviews
+                        WHERE object_id=o.id ORDER BY revision DESC LIMIT 1
+                    ) r ON true
+                    JOIN tmb.lost_reports lr ON lr.id=m.report_id
+                    LEFT JOIN tmb.report_contacts c ON c.report_id=lr.id
+                    ORDER BY m.created_at DESC LIMIT 200''').fetchall()
+            for row in objects:
+                row['created_at'] = row['created_at'].isoformat()
+                row['received_at'] = row['received_at'].isoformat()
+            for row in reports:
+                row['lost_date'] = row['lost_date'].isoformat() if row['lost_date'] else None
+                row['created_at'] = row['created_at'].isoformat()
+            for row in links:
+                for key in ('created_at','object_created_at','received_at','sent_at','returned_at',
+                            'lost_date','report_created_at'):
+                    value = row[key]
+                    row[key] = value.isoformat() if value else None
+            return dict(objects=objects,reports=reports,matches=links)
+
+        object_id = text(payload.get('objectId'),160,required=True)
+        report_id = text(payload.get('reportId'),160,required=True)
+        if action == 'link':
+            with self.repo.connect() as conn:
+                if not conn.execute('SELECT 1 FROM tmb.searchable_objects WHERE id=%s',(object_id,)).fetchone():
+                    raise ValueError('L’objecte no és actiu i aprovat per a la cerca.')
+                if not conn.execute("SELECT 1 FROM tmb.lost_reports WHERE id=%s AND status='open'",(report_id,)).fetchone():
+                    raise ValueError('La declaració no és oberta.')
+                inserted = conn.execute('''INSERT INTO tmb.report_matches(object_id,report_id)
+                    VALUES (%s,%s) ON CONFLICT DO NOTHING RETURNING object_id''',(object_id,report_id)).fetchone()
+                if not inserted:
+                    raise ValueError('Aquesta coincidència ja està confirmada.')
+            return dict(objectId=object_id,reportId=report_id)
+
+        if action == 'unlink':
+            with self.repo.connect() as conn:
+                deleted = conn.execute('''DELETE FROM tmb.report_matches
+                    WHERE object_id=%s AND report_id=%s RETURNING object_id''',(object_id,report_id)).fetchone()
+                if not deleted:
+                    raise ValueError('No s’ha trobat aquesta coincidència.')
+            return dict(objectId=object_id,reportId=report_id)
+
+        if action == 'update':
+            found_location = text(payload.get('foundLocation'),160,required=True)
+            destination = text(payload.get('destination'),160)
+            with self.repo.connect() as conn:
+                link = conn.execute('''SELECT destination FROM tmb.report_matches
+                    WHERE object_id=%s AND report_id=%s FOR UPDATE''',(object_id,report_id)).fetchone()
+                if not link:
+                    raise ValueError('No s’ha trobat aquesta coincidència.')
+                conn.execute('UPDATE tmb.found_objects SET found_location=%s WHERE id=%s',
+                             (found_location,object_id))
+                if destination != link['destination']:
+                    conn.execute('''UPDATE tmb.report_matches SET destination=%s,
+                        sent_at=CASE WHEN %s IS NULL THEN NULL ELSE clock_timestamp() END,
+                        returned_at=NULL WHERE object_id=%s AND report_id=%s''',
+                        (destination,destination,object_id,report_id))
+            return dict(objectId=object_id,reportId=report_id)
+
+        if action in {'return','reopen'}:
+            with self.repo.connect() as conn:
+                link = conn.execute('''SELECT destination FROM tmb.report_matches
+                    WHERE object_id=%s AND report_id=%s FOR UPDATE''',(object_id,report_id)).fetchone()
+                if not link:
+                    raise ValueError('No s’ha trobat aquesta coincidència.')
+                if action == 'return' and not link['destination']:
+                    raise ValueError('Indica primer on s’ha enviat l’objecte.')
+                if action == 'return':
+                    conn.execute('''UPDATE tmb.report_matches SET returned_at=clock_timestamp()
+                        WHERE object_id=%s AND report_id=%s''',(object_id,report_id))
+                else:
+                    conn.execute('''UPDATE tmb.report_matches SET returned_at=NULL
+                        WHERE object_id=%s AND report_id=%s''',(object_id,report_id))
+            return dict(objectId=object_id,reportId=report_id)
+
+        raise ValueError('Acció de coincidència desconeguda.')
+
     def photo_bytes(self, photo_id):
         with self.repo.connect() as conn:
             photo = conn.execute('''SELECT p.storage_key FROM tmb.photos p

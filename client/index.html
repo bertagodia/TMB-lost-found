@@ -9,6 +9,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css?v=2" />
     <link rel="stylesheet" href="location-assignment.css" />
+    <link rel="stylesheet" href="match.css?v=1" />
     <title>TMB Lost &amp; Found</title>
   </head>
   <body>
@@ -21,6 +22,7 @@
       <nav class="audience-tabs" role="tablist" aria-label="Tipus d’usuari">
         <button class="audience-tab active" id="staffTab" type="button" role="tab" aria-selected="true" aria-controls="operatorPanel">Operaris TMB</button>
         <button class="audience-tab" id="citizenTab" type="button" role="tab" aria-selected="false" aria-controls="citizenPanel">Soc usuari</button>
+        <button class="audience-tab" id="matchTab" type="button" role="tab" aria-selected="false" aria-controls="matchPanel">Match</button>
       </nav>
       <section id="operatorPanel" role="tabpanel" aria-labelledby="staffTab">
       <section class="status-strip" aria-live="polite"><span class="status-dot" id="connectionDot"></span><span id="connectionText">Comprovant connexió...</span><span class="status-divider"></span><span id="draftText">Cap esborrany actiu</span></section>
@@ -79,9 +81,23 @@
       </form>
       <section id="searchResults" aria-live="polite"></section>
     </section>
+    <section class="match-panel" id="matchPanel" role="tabpanel" aria-labelledby="matchTab" hidden>
+      <div class="citizen-heading"><p class="section-kicker">Seguiment d’objectes</p><h2>Coincidències confirmades</h2><p class="muted">Vincula objectes trobats amb declaracions reals, gestiona’n la ubicació i registra el retorn.</p></div>
+      <p class="privacy-note">Els contactes només es mostren per a declaracions vinculades. Aquesta eina és local i no té autenticació; protegeix l’accés a aquest equip.</p>
+      <form class="match-link-form" id="newMatchForm">
+        <label>Objecte trobat<select name="objectId" required><option value="">Tria un objecte trobat</option></select></label>
+        <label>Declaració oberta<select name="reportId" required><option value="">Tria una declaració</option></select></label>
+        <button class="primary-button" type="submit">Confirmar match</button>
+      </form>
+      <div class="match-summary" id="matchSummary"></div>
+      <button class="secondary-button" id="refreshMatches" type="button">Actualitzar dades</button>
+      <div class="match-list" id="matchList"></div>
+      <p class="empty-requests" id="emptyMatch" hidden>Encara no hi ha cap coincidència confirmada.</p>
+      <p class="match-feedback" id="matchFeedback" role="status" aria-live="polite"></p>
+    </section>
     <dialog class="requests-dialog" id="inventoryDialog"><header class="requests-header"><h2>Inventari del servidor</h2><button class="close-button" id="closeInventory" type="button">×</button></header><button class="secondary-button" id="refreshInventory" type="button">Actualitzar</button><p id="inventoryStatus" role="status"></p><div id="inventoryList" class="request-list"></div></dialog>
     <dialog class="requests-dialog" id="editDialog"><h2>Revisar objecte</h2><form id="editForm" class="details-form"><fieldset class="color-field"><legend>Colors</legend><div id="editColors" class="color-options"></div></fieldset><label>Tipus<select id="editType" required></select></label><label>Material<select id="editMaterial" required></select></label><label>Descripció<textarea id="editDescription" maxlength="250"></textarea></label><label>Decisió<select id="editDecision"><option value="approved">Aprovar</option><option value="rejected">Rebutjar i retirar de la cerca</option></select></label><button class="primary-button" type="submit">Confirmar nova revisió</button><button class="secondary-button" id="cancelEdit" type="button">Cancel·lar</button><p id="editStatus" role="status"></p></form></dialog>
     </main>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script><script src="match.js" type="module"></script>
   </body>
 </html>
