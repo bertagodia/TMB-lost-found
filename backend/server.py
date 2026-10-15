@@ -156,6 +156,7 @@ class Handler(BaseHTTPRequestHandler):
             except psycopg.Error:
                 return self.respond(503,{'error':'PostgreSQL no està disponible.'})
         files = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js',
+                 **{('/'+name):name for name in ('location-assignment.js','location-assignment.css','match.js','match.css','origin-options.json')},
                  '/styles.css': 'styles.css', '/manifest.webmanifest': 'manifest.webmanifest',
                  '/form-options.json': 'form-options.json', '/transit-options.json':'transit-options.json'}
         if path not in files:
@@ -183,7 +184,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.server.app.extract(payload))
             if path == '/lost-found':
                 return self.respond(200, self.server.app.submit(payload))
-            operations = {'/api/inventory':'inventory','/api/review':'review',
+            operations = {'/api/matches':'matches','/api/inventory':'inventory','/api/review':'review',
                 '/api/status':'status','/api/search':'search','/api/lost-reports':'lost_report'}
             if path in operations and hasattr(self.server.app,operations[path]):
                 return self.respond(200,getattr(self.server.app,operations[path])(payload))

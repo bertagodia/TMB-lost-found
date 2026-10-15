@@ -41,13 +41,84 @@ class PostgresTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.app=PostgresApplication(self.temp.name,self.dsn,'test-model')
         with self.app.repo.connect() as conn:
-            conn.execute('TRUNCATE tmb.finding_reviews,tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
+            conn.execute('TRUNCATE tmb.object_matches,tmb.object_routing,tmb.finding_reviews,tmb.http_submissions,tmb.report_contacts,tmb.lost_reports,tmb.object_reviews,tmb.extraction_runs,tmb.photos,tmb.found_objects')
         data=io.BytesIO();Image.new('RGB',(24,24),'orange').save(data,format='JPEG')
         self.photo=dict(data='data:image/jpeg;base64,'+base64.b64encode(data.getvalue()).decode())
         self.fields=dict(colorOrderKnown=True,colors=['Taronja','Negre'],objectType='Ampolla',material='Metall',description='Orange bottle')
         self.record=dict(id='test-record',photos=[self.photo,self.photo],details=self.fields,reviewed=True,
                          vehicle=dict(line='H12',vehicle='001',source='manual'),capturedAt='2026-10-09T10:00:00Z')
         self.draft=dict(object_name='bottle',visible_features=['Orange body'],colors=['orange','black'],material='metal',quality='usable',sensitive_content=False)
+
+    def test_origin_matches_persistence_and_search_lifecycle(self):
+        self.record['origin']={'kind':'station','location':'Sants Estació'}
+        from backend.postgres import ORIGINS
+        location=next(iter(ORIGINS['station']))
+        self.record['origin']['location']=location
+        self.app.submit(self.record)
+        self.assertTrue(self.app.submit(self.record)['duplicate'])
+        self.app.lost_report(dict(id='report1',description='Orange bottle',contact={'name':'Test person'}))
+        self.app.lost_report(dict(id='report2',description='Orange bottle',contact={}))
+        data=self.app.matches({})
+        item=data['records'][0]
+        self.assertEqual(item['assignedDestination'],ORIGINS['station'][location])
+        self.assertFalse(item['destination'])
+        self.assertIsNone(item['sentAt'])
+        self.app.matches(dict(action='link',recordId='test-record',reportId='report1'))
+        self.app.matches(dict(action='link',recordId='test-record',reportId='report2'))
+        data=self.app.matches(dict(action='link',recordId='test-record',reportId='report2'))
+        self.assertEqual(len(data['records'][0]['matchedReportIds']),2)
+        self.assertEqual(next(r for r in data['reports'] if r['id']=='report1')['contact']['name'],'Test person')
+        with self.assertRaises(ValueError):
+            self.app.matches(dict(action='return',recordId='test-record',revision=1))
+        data=self.app.matches(dict(action='location',recordId='test-record',revision=1,foundLocation=location,destination='Espanya'))
+        self.assertIsNotNone(data['records'][0]['sentAt'])
+        with self.assertRaises(ConflictError):
+            self.app.matches(dict(action='location',recordId='test-record',revision=1,foundLocation=location,destination='Diagonal'))
+        self.app.matches(dict(action='return',recordId='test-record',revision=2))
+        self.assertEqual(self.app.search({'description':'Orange bottle'})['candidates'],[])
+        self.app.matches(dict(action='reopen',recordId='test-record',revision=3))
+        self.assertEqual(len(self.app.search({'description':'Orange bottle'})['candidates']),1)
+        restarted=PostgresApplication(self.temp.name,self.dsn,'test-model')
+        self.assertEqual(len(restarted.matches({})['records'][0]['matchedReportIds']),2)
+        result=restarted.matches(dict(action='unlink',recordId='test-record',reportId='report1'))
+        self.assertEqual(result['records'][0]['matchedReportIds'],['report2'])
+        with self.assertRaises(ConflictError):
+            changed={**self.record,'origin':{'kind':'depot','location':''}}
+            self.app.submit(changed)
+
+    def test_invalid_origin_and_match_do_not_mutate(self):
+        with self.assertRaises(ValueError):
+            self.app.submit({**self.record,'origin':{'kind':'station','location':'Unknown'}})
+        self.assertEqual(self.app.inventory({})['objects'],[])
+        self.app.submit(self.record)  # Legacy payloads remain valid.
+        with self.assertRaises(ValueError):
+            self.app.matches(dict(action='link',recordId='test-record',reportId='missing'))
+        self.assertEqual(self.app.matches({})['records'][0]['matchedReportIds'],[])
+
+    def test_upgrade_from_three_migrations_preserves_records(self):
+        import shutil
+        from database.migrate import MIGRATIONS
+        name='tmb_upgrade_'+uuid4().hex
+        with psycopg.connect(self.admin,autocommit=True) as conn:
+            conn.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(name)))
+        dsn=make_conninfo(self.admin,dbname=name)
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                for migration in sorted(MIGRATIONS.glob('*.sql'))[:3]:
+                    shutil.copyfile(migration,Path(folder)/migration.name)
+                migrate(dsn,Path(folder))
+            old_app=PostgresApplication(self.temp.name,dsn,'test-model')
+            old_app.submit(self.record)
+            old_app.lost_report(dict(id='old-report',description='Orange bottle',contact={'email':'test@example.invalid'}))
+            self.assertEqual(migrate(dsn),4)
+            self.assertTrue(old_app.submit(self.record)['duplicate'])
+            data=old_app.matches({})
+            self.assertEqual(data['records'][0]['id'],self.record['id'])
+            self.assertEqual(data['reports'][0]['contact']['email'],'test@example.invalid')
+            self.assertEqual(len(old_app.search({'description':'Orange bottle'})['candidates']),1)
+        finally:
+            with psycopg.connect(self.admin,autocommit=True) as conn:
+                conn.execute(sql.SQL('DROP DATABASE {} WITH (FORCE)').format(sql.Identifier(name)))
 
     def extraction(self):
         with patch('backend.server.model_digest',return_value='digest'),patch('backend.postgres.model_digest',return_value='digest'),patch('search.form_extraction.request_json',return_value=json.dumps(self.draft)):

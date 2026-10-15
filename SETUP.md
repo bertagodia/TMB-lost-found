@@ -290,3 +290,12 @@ No la publiques en Internet. Cada ordenador usa `127.0.0.1` para referirse a sí
 
 Si necesitas ayuda, comparte el comando ejecutado, el error y tu sistema operativo.
 Oculta contraseñas y datos de contacto antes de copiar mensajes o capturas.
+
+## Using the integrated Match view
+
+After registering an object and saving a citizen report, open **Match**, choose
+both records and confirm the link. You can then record its destination and mark
+it returned. These actions are saved in PostgreSQL. Origin selection in step 1
+assigns a central but does not mark the object as sent. See the step-by-step
+[operations guide](docs/MAIN_INTEGRATION.md) for details. The server automatically
+applies migration 004; keep existing migration files unchanged.

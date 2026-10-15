@@ -4,6 +4,9 @@ from datetime import date, datetime
 import hashlib
 import json
 from uuid import uuid4
+from pathlib import Path
+
+ORIGINS = json.loads((Path(__file__).resolve().parent.parent/"client/origin-options.json").read_text())
 
 from PIL import Image
 
@@ -133,6 +136,16 @@ class PostgresApplication(Application):
         request_data = dict(details=details,photos=hashes,metadata=metadata,extraction_id=extraction_id)
         if found is not None:
             request_data['found_transport'] = found['found_transport']
+        origin = record.get('origin')
+        route = None
+        if origin is not None:
+            if not isinstance(origin,dict) or origin.get('kind') not in ORIGINS:
+                raise ValueError('Origen invàlid.')
+            location = text(origin.get('location'),160)
+            if location and location not in ORIGINS[origin['kind']]:
+                raise ValueError('Ubicació d’origen desconeguda.')
+            route = (origin['kind'],location,ORIGINS[origin['kind']].get(location))
+            request_data['origin'] = route
         request_hash = hash_json(request_data)
         staged = []
         try:
@@ -169,6 +182,8 @@ class PostgresApplication(Application):
                 if found is not None:
                     conn.execute('UPDATE tmb.found_objects SET found_transport=%s WHERE id=%s',(found['found_transport'],object_id))
                     self.record_finding(conn,object_id,found)
+                if route:
+                    conn.execute('INSERT INTO tmb.object_routing(object_id,origin_kind,origin_location,assigned_destination,found_location) VALUES (%s,%s,%s,%s,%s)',(object_id,*route,route[1]))
                 conn.execute('INSERT INTO tmb.http_submissions(object_id,request_hash) VALUES (%s,%s)',(object_id,request_hash))
             return dict(id=object_id,queued=False,status='stored-postgres',duplicate=False)
         finally:
@@ -218,7 +233,16 @@ class PostgresApplication(Application):
         return dict(id=object_id,revision=result['revision'])
 
     def status(self, payload):
-        self.repo.set_status(text(payload.get('id'),160,required=True),payload.get('status'))
+        object_id = text(payload.get('id'),160,required=True)
+        status = payload.get('status')
+        if status not in ('registered','returned','archived'):
+            raise ValueError('Estat invàlid.')
+        with self.repo.connect() as conn:
+            if not conn.execute('SELECT id FROM tmb.found_objects WHERE id=%s FOR UPDATE',(object_id,)).fetchone():
+                raise ValueError('Objecte no trobat.')
+            conn.execute('UPDATE tmb.found_objects SET status=%s WHERE id=%s',(status,object_id))
+            if status != 'returned':
+                conn.execute('UPDATE tmb.object_routing SET returned_at=NULL,revision=revision+1 WHERE object_id=%s',(object_id,))
         return dict(id=payload['id'],status=payload['status'])
 
     def search(self, payload):
@@ -300,6 +324,66 @@ class PostgresApplication(Application):
             return dict(id=report_id,status='stored-postgres',**results)
         finally:
             self.discard_staged(staged)
+
+    def matches(self, payload):
+        """Operator-only local UI endpoint; never expose contacts through public search."""
+        action = payload.get('action','list')
+        if action not in ('list','link','unlink','location','return','reopen'):
+            raise ValueError('Acció invàlida.')
+        with self.repo.connect() as conn:
+            if action != 'list':
+                object_id = text(payload.get('recordId'),160,required=True)
+                obj = conn.execute('SELECT status FROM tmb.found_objects WHERE id=%s FOR UPDATE',(object_id,)).fetchone()
+                if not obj:
+                    raise ValueError('Objecte no trobat.')
+                if action in ('link','unlink'):
+                    report_id = text(payload.get('reportId'),160,required=True)
+                    if not conn.execute('SELECT id FROM tmb.lost_reports WHERE id=%s',(report_id,)).fetchone():
+                        raise ValueError('Declaració no trobada.')
+                    if action == 'link':
+                        conn.execute('INSERT INTO tmb.object_matches(object_id,report_id) VALUES (%s,%s) ON CONFLICT DO NOTHING',(object_id,report_id))
+                    else:
+                        conn.execute('DELETE FROM tmb.object_matches WHERE object_id=%s AND report_id=%s',(object_id,report_id))
+                else:
+                    conn.execute('INSERT INTO tmb.object_routing(object_id) VALUES (%s) ON CONFLICT DO NOTHING',(object_id,))
+                    route = conn.execute('SELECT * FROM tmb.object_routing WHERE object_id=%s FOR UPDATE',(object_id,)).fetchone()
+                    if payload.get('revision') != route['revision']:
+                        raise ConflictError('El seguiment ha canviat. Actualitza Match abans de tornar-ho a provar.')
+                    if action == 'location':
+                        location = text(payload.get('foundLocation'),160,required=True)
+                        destination = text(payload.get('destination'),160)
+                        if obj['status']=='returned' and destination != route['destination']:
+                            raise ValueError('Reobre el seguiment abans de canviar la destinació.')
+                        conn.execute("""UPDATE tmb.object_routing SET found_location=%s,
+                            sent_at=CASE WHEN %s::text IS NULL THEN NULL WHEN destination IS DISTINCT FROM %s THEN clock_timestamp() ELSE sent_at END,
+                            destination=%s,revision=revision+1 WHERE object_id=%s""",(location,destination,destination,destination,object_id))
+                    else:
+                        if obj['status']=='archived':
+                            raise ValueError('Reactiva l’objecte des de l’inventari abans de continuar.')
+                        if action=='return' and not route['destination']:
+                            raise ValueError('Indica primer on s’ha enviat l’objecte.')
+                        conn.execute("UPDATE tmb.object_routing SET returned_at=CASE WHEN %s THEN clock_timestamp() ELSE NULL END,revision=revision+1 WHERE object_id=%s",(action=='return',object_id))
+                        conn.execute('UPDATE tmb.found_objects SET status=%s WHERE id=%s',('returned' if action=='return' else 'registered',object_id))
+            objects = conn.execute("""SELECT o.*,r.object_type,r.description,
+                t.origin_location,t.assigned_destination,t.found_location AS routing_location,t.destination,t.sent_at,t.returned_at,
+                coalesce(t.revision,1) AS routing_revision,
+                ARRAY(SELECT m.report_id FROM tmb.object_matches m WHERE m.object_id=o.id ORDER BY m.created_at,m.report_id) AS matches
+                FROM tmb.found_objects o
+                LEFT JOIN LATERAL (SELECT * FROM tmb.object_reviews WHERE object_id=o.id ORDER BY revision DESC LIMIT 1) r ON true
+                LEFT JOIN tmb.object_routing t ON t.object_id=o.id ORDER BY o.created_at DESC""").fetchall()
+            reports = conn.execute("""SELECT r.*,c.name,c.email,c.phone FROM tmb.lost_reports r
+                LEFT JOIN tmb.report_contacts c ON c.report_id=r.id ORDER BY r.created_at DESC""").fetchall()
+        def iso(value):
+            return value.isoformat() if value else None
+        return dict(records=[dict(id=o['id'],object=o['description'] or o['object_type'] or o['id'],type=o['object_type'],
+            foundAt=iso(o['found_date']),receivedAt=iso(o['received_at'] or o['created_at']),
+            foundLocation=o['routing_location'] or o['found_location'] or o['found_line'] or o['registered_line'] or '',
+            assignedDestination=o['assigned_destination'],originLocation=o['origin_location'],
+            destination=o['destination'] or '',sentAt=iso(o['sent_at']),
+            returnedAt=iso(o['returned_at'] or o['updated_at']) if o['status']=='returned' else None,
+            status=o['status'],revision=o['routing_revision'],matchedReportIds=o['matches']) for o in objects],
+            reports=[dict(id=r['id'],object=r['original_description'],lostAt=iso(r['lost_date']),
+                lostLocation=r['location_text'] or r['lost_line'],contact={k:r[k] for k in ('name','email','phone')}) for r in reports])
 
     def photo_bytes(self, photo_id):
         with self.repo.connect() as conn:

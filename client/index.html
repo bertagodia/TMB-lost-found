@@ -8,7 +8,7 @@
     <meta name="description" content="Registre d'objectes perduts trobats per operaris de TMB" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css?v=3" />
-    <title>TMB Lost &amp; Found</title>
+    <link rel="stylesheet" href="location-assignment.css"><link rel="stylesheet" href="match.css"><title>TMB Lost &amp; Found</title>
   </head>
   <body>
     <main class="app-shell">
@@ -20,7 +20,7 @@
       <nav class="audience-tabs" role="tablist" aria-label="Tipus d’usuari">
         <button class="audience-tab active" id="staffTab" type="button" role="tab" aria-selected="true" aria-controls="operatorPanel">Operaris TMB</button>
         <button class="audience-tab" id="citizenTab" type="button" role="tab" aria-selected="false" aria-controls="citizenPanel">Soc usuari</button>
-      </nav>
+      <button class="audience-tab" id="matchTab" type="button" role="tab" aria-selected="false" aria-controls="matchPanel">Match</button></nav>
       <section id="operatorPanel" role="tabpanel" aria-labelledby="staffTab">
       <section class="status-strip" aria-live="polite"><span class="status-dot" id="connectionDot"></span><span id="connectionText">Comprovant connexió...</span><span class="status-divider"></span><span id="draftText">Cap esborrany actiu</span></section>
       <button class="secondary-button" id="inventoryButton" type="button">Inventari del servidor</button>
@@ -31,6 +31,19 @@
         <section class="view active" data-view="1"><div class="view-heading"><p class="section-kicker">Pas 1 de 4</p><h2>Identifica la troballa</h2><p class="muted">Apropa el mòbil al tag del vehicle abans de començar.</p></div>
           <div class="nfc-panel"><div class="nfc-symbol" aria-hidden="true">⌁</div><div><strong id="nfcTitle">A punt per llegir</strong><p id="nfcMessage">La lectura NFC associarà el registre a la línia o vehicle.</p></div><button class="primary-button" id="scanNfcButton" type="button">Llegir NFC</button></div>
           <div class="manual-card"><div><p class="section-kicker">Entorn de proves</p><strong>Vehicle introduït manualment</strong><p class="muted">Només disponible mentre no hi hagi un tag NFC configurat.</p></div><div class="manual-fields"><label>Transport<select id="manualTransport"><option value="">Selecciona Bus o Metro</option><option value="bus">Bus</option><option value="metro">Metro</option></select></label><label>Línia on s’ha trobat<input id="manualLine" placeholder="p. ex. H12 o L1" maxlength="12" /></label><label>Vehicle (intern)<input id="manualVehicle" placeholder="p. ex. 3421" maxlength="20" /></label><label>Data de la troballa (dd/mm/aaaa)<input id="foundDate" type="text" inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" /></label><label class="review-confirmation"><input id="foundApproximate" type="checkbox" /> Data aproximada</label></div><button class="secondary-button" id="manualVehicleButton" type="button">Continuar amb aquestes dades</button></div>
+          <section class="origin-card" id="originPanel" role="tabpanel" aria-labelledby="stationOriginTab">
+            <div><p class="section-kicker">Ubicació de la troballa</p><h3 id="originTitle">On fas la foto?</h3><p class="muted">Selecciona l’estació o la cotxera d’origen per assignar la central de destinació.</p></div>
+            <nav class="origin-tabs" role="tablist" aria-label="Tipus de punt d’origen">
+              <button class="origin-tab active" id="stationOriginTab" type="button" role="tab" aria-selected="true" aria-controls="originPanel" data-origin-kind="station">Estació</button>
+              <button class="origin-tab" id="depotOriginTab" type="button" role="tab" aria-selected="false" aria-controls="originPanel" data-origin-kind="depot">Cotxera</button>
+            </nav>
+            <label for="originLocation"><span id="originLocationLabel">Estació</span>
+              <select id="originLocation"><option value="">Selecciona una estació</option></select>
+            </label>
+            <input id="originKind" type="hidden" value="station" />
+            <input id="originDestination" type="hidden" />
+            <p class="origin-assignment" id="originAssignment" aria-live="polite">La central de destinació es mostrarà en seleccionar l’origen.</p>
+          </section>
         </section>
         <section class="view" data-view="2"><div class="view-heading"><p class="section-kicker">Pas 2 de 4</p><h2>Fotografia l’objecte</h2><p class="muted">Necessitem dues perspectives clares. Revisa cada foto abans de confirmar-la.</p></div><div class="photo-grid"><article class="photo-slot"><div class="photo-preview" id="preview0"><span>Foto 1</span></div><div class="slot-footer"><div><strong>Perspectiva principal</strong><small id="photoStatus0">Encara no capturada</small></div><button class="secondary-button photo-button" data-photo="0" type="button">Fer foto</button></div></article><article class="photo-slot"><div class="photo-preview" id="preview1"><span>Foto 2</span></div><div class="slot-footer"><div><strong>Segona perspectiva</strong><small id="photoStatus1">Encara no capturada</small></div><button class="secondary-button photo-button" data-photo="1" type="button" disabled>Fer foto</button></div></article></div><input id="photoInput" type="file" accept="image/*" capture="environment" hidden /><div class="quality-note" id="qualityNote" hidden></div></section>
         <section class="view" data-view="3"><div class="view-heading"><p class="section-kicker">Pas 3 de 4</p><h2>Descriu l’objecte</h2><p class="muted">Les etiquetes ajuden a trobar-lo després. La descripció és opcional.</p></div><div class="extraction-panel"><p id="extractionStatus" role="status" aria-live="polite">Els camps s’ompliran a partir de la foto principal. Revisa’ls abans de continuar.</p><div id="extractionProgress" hidden><label id="extractionProgressLabel" for="extractionBar">Analitzant la foto…</label><progress id="extractionBar" max="1" aria-describedby="extractionProgressLabel"></progress></div><button id="retryExtraction" class="secondary-button" type="button">Reintentar extracció</button><button id="skipExtraction" class="secondary-button" type="button">Omplir manualment</button><details id="extractionDetails" hidden><summary>Veure camps extrets (JSON)</summary><pre id="extractionJson"></pre></details></div><form class="details-form" id="detailsForm"><fieldset class="color-field"><legend>Colors de l’objecte</legend><div id="color" class="color-options"></div><small>Ordena de més a menys superfície visible. El primer és el principal; estimació visual, sense percentatges.</small></fieldset><label>Tipus d’objecte<select id="objectType" required><option value="">Selecciona un tipus</option></select></label><label>Material principal<select id="material" required><option value="">Selecciona un material</option></select></label><label>Descripció <span class="optional">Opcional</span><textarea id="description" maxlength="250" rows="4" placeholder="Detalls visibles, marques o elements distintius..."></textarea><small class="character-count"><span id="descriptionCount">0</span>/250</small></label><label class="review-check"><input id="fieldsReviewed" type="checkbox"> He revisat i corregit els camps del registre.</label></form></section>
@@ -69,7 +82,20 @@
     </section>
     <dialog class="requests-dialog" id="inventoryDialog"><header class="requests-header"><h2>Inventari del servidor</h2><button class="close-button" id="closeInventory" type="button">×</button></header><button class="secondary-button" id="refreshInventory" type="button">Actualitzar</button><p id="inventoryStatus" role="status"></p><div id="inventoryList" class="request-list"></div></dialog>
     <dialog class="requests-dialog" id="editDialog"><h2>Revisar objecte</h2><form id="editForm" class="details-form"><fieldset class="finding-fields"><legend>On i quan es va trobar?</legend><p class="muted">Indica la troballa real, no el lloc o la data de registre. Deixa en blanc allò que no sàpigues.</p><label>Transport<select id="editFoundTransport"><option value="">Desconegut</option><option value="bus">Bus</option><option value="metro">Metro</option></select></label><label>Línia de la troballa<input id="editFoundLine" placeholder="p. ex. H12 o L1" maxlength="12" /></label><label>Data de la troballa (dd/mm/aaaa)<input id="editFoundDate" type="text" inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" /></label><label class="review-confirmation"><input id="editFoundApproximate" type="checkbox" /> Data aproximada</label></fieldset><fieldset class="color-field"><legend>Colors · de més a menys cobertura</legend><div id="editColors" class="color-options"></div><small>Revisa l’ordre estimat abans de confirmar. Principal = més superfície visible.</small></fieldset><label>Tipus<select id="editType" required></select></label><label>Material<select id="editMaterial" required></select></label><label>Descripció<textarea id="editDescription" maxlength="250"></textarea></label><label>Decisió<select id="editDecision"><option value="approved">Aprovar</option><option value="rejected">Rebutjar i retirar de la cerca</option></select></label><button class="primary-button" type="submit">Confirmar nova revisió</button><button class="secondary-button" id="cancelEdit" type="button">Cancel·lar</button><p id="editStatus" role="status"></p></form></dialog>
+    <section class="match-panel" id="matchPanel" role="tabpanel" aria-labelledby="matchTab" hidden>
+      <div class="citizen-heading"><p class="section-kicker">Seguiment d’objectes</p><h2>Match</h2><p class="muted">Confirma coincidències entre objectes trobats i declaracions, i segueix-ne els contactes, les ubicacions i els dies des de l’entrada.</p></div>
+      <p class="privacy-note">Seguiment intern del prototip local. Les coincidències es confirmen manualment i es desen al servidor.</p>
+      <form class="match-link-form" id="newMatchForm">
+        <label>Objecte trobat<select name="recordId" required><option value="">Tria un objecte trobat</option></select></label>
+        <label>Declaració del sol·licitant<select name="reportId" required><option value="">Tria una declaració</option></select></label>
+        <button class="primary-button" type="submit">Confirmar match</button>
+      </form>
+      <div class="match-summary" id="matchSummary" aria-live="polite"></div>
+      <div class="match-list" id="matchList"></div>
+      <p class="empty-requests" id="emptyMatch" hidden>Encara no hi ha cap coincidència confirmada.</p>
+      <p class="match-feedback" id="matchFeedback" role="status" aria-live="polite"></p>
+    </section>
     </main>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="app.js" type="module"></script><script src="location-assignment.js" type="module"></script><script src="match.js" type="module"></script>
   </body>
 </html>

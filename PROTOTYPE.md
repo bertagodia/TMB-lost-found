@@ -86,7 +86,7 @@ because its local request token changes.
 
 ## This machine's running configuration
 
-- Code checkout: `/tmp/tmb-search-improvements`, branch `feature/ranked-colors-transit-search`.
+- Code checkout: `/tmp/tmb-main-integration`, branch `integration/main-prototype-connections`.
 - PostgreSQL container: `tmb-prototype-db`, localhost port `55432`, named persistent
   volume `tmb-prototype-pgdata`. This is separate from the disposable test container.
 - Images/cache: `/home/tomaspr/Documents/UPC/4A/PAE_lost-n-found/artifacts/prototype/storage`.
@@ -167,3 +167,10 @@ for the next iteration's line priority, date format and citizen search refinemen
   for audit. Automated retention/cleanup and crash-recovery reconciliation remain.
 - No notifications, contact-management UI, claim verification, custody workflow,
   SharePoint import, embeddings or image-to-image search.
+
+## Integrated operations
+
+The location-assignment and Match views now use the real database. See
+[Main integration](docs/MAIN_INTEGRATION.md) for the workflow, upgrade mapping
+and validation. Assignment does not mark an object as shipped. Match links are
+manual and persist across browsers; returned objects leave the search index.
