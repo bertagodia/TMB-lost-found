@@ -1,129 +1,28 @@
-# WP4 — Aplicació i interacció amb les persones usuàries
+# WP4 — interfície del prototip integrat
 
-El WP4 s’encarrega de la part de l’aplicació amb què interactuen les persones: les
-pantalles, els formularis, la captura d’imatges i la presentació clara de l’estat de
-les sol·licituds. L’objectiu és que registrar o cercar un objecte sigui senzill des
-del mòbil.
+La guia actual de funcionalitats, arrencada i proves és [PROTOTYPE.md](../PROTOTYPE.md).
+Amb `DATABASE_URL`, la interfície desa objectes a PostgreSQL, permet revisar
+l’inventari del servidor i cerca coincidències des de la pestanya ciutadana.
+Les declaracions i contactes es desen separadament al servidor. La foto ciutadana
+és només una referència; la cerca compara text i filtres.
 
-L’aplicació té les àrees «Operaris TMB» i «Soc usuari», així com la pestanya
-«Match» per provar el seguiment amb dades fictícies locals. La connexió compartida
-amb el servidor encara no està implementada.
+L’extracció analitza la primera de les dues fotos amb Qwen/Ollama. Pots omplir
+els camps manualment, revisar diversos colors i confirmar abans de desar.
+L’inventari permet corregir, rebutjar, marcar com a retornat i reactivar objectes.
+Les revisions es conserven i la cerca només mostra la darrera revisió aprovada
+d’objectes actius.
 
-## Captura de la interfície actual
+El servidor escolta a localhost:8001. Les pestanyes encara no tenen autenticació
+ni separació real de permisos. No és un servei públic de TMB.
 
-La imatge mostra la pantalla inicial de l’àrea TMB per identificar el vehicle i
-començar un registre.
+## Fitxers
 
-![Captura de la pantalla inicial del registre TMB](wp4-preview.png)
+- `index.html`, `app.js`, `styles.css`: interfície sense framework.
+- `form-options.json`: vocabulari compartit amb backend.
+- `tests/prototype.cjs`: prova Playwright del flux complet amb servidor real.
+- `manifest.webmanifest`: metadades de la interfície.
 
-La fletxa de la capçalera obre el resum dels registres desats al dispositiu:
-
-![Pestanya de registres oberta des de la fletxa](wp4-requests-preview.png)
-
-En aquesta captura els dos registres apareixen com a pendents perquè l’API encara
-no està connectada. Quan l’enviament estigui integrat, aquesta vista també podrà
-indicar quins registres s’han enviat correctament.
-
-## Àrea TMB: registre per part dels operaris
-
-La primera part de l’aplicació està pensada per als operaris de TMB que registren
-objectes trobats al final de la jornada. El flux permet:
-
-- Escollir «Metro» o «Bus» abans d’iniciar el registre; la selecció es desa amb
-	el registre.
-- Seleccionar si la foto s’ha fet en una estació o en una cotxera; l’aplicació
-	assigna automàticament l’estació central de destinació segons les taules del
-	full de correspondències.
-- A «Metro», introduir l’estació; a «Bus», identificar el vehicle. En mode de
-	proves, es poden introduir manualment la línia i l’estació o el número de vehicle.
-- Fer i revisar dues fotografies de l’objecte.
-- Seleccionar el color, el tipus d’objecte i el material principal.
-- Afegir una descripció opcional de fins a 250 caràcters.
-- Revisar les dades i desar el registre al dispositiu si no hi ha connexió.
-- Consultar un resum dels registres guardats i saber si estan pendents o s’han enviat.
-
-Actualment, el client és una aplicació web instal·lable (PWA) i la integració amb
-l’API és provisional. Sense un backend configurat, els registres queden desats al
-navegador del dispositiu i no es comparteixen amb altres persones.
-
-## Pestanya «Soc usuari»: declarar un objecte perdut
-
-La interfície inclou una pestanya separada per a les persones que han perdut un
-objecte. El formulari permet descriure’l (fins a 500 caràcters), indicar la línia,
-autobús o estació i la data de pèrdua, seleccionar tipus i color, afegir una foto de
-referència opcional i proporcionar nom, correu electrònic i telèfon opcional.
-Per desar la declaració, el nom i el correu electrònic són obligatoris i cal
-acceptar explícitament que TMB pugui contactar amb la persona per aquesta declaració.
-L’acceptació i la data queden desades amb el registre local.
-
-Les declaracions s’emmagatzemen localment sota la clau
-`tmb-lost-found-citizen-reports`, separada de la cua i l’historial dels operaris.
-També apareixen a «Sol·licituds» juntament amb els registres TMB, identificades
-com a declaracions d’usuari i pendents d’enviament. El resum no mostra les dades
-de contacte. No s’envien a TMB ni es comparteixen amb altres dispositius. Aquesta
-és només una persistència de prototip: no s’hi han d’introduir dades personals
-reals fins que existeixi una API segura i una política de privacitat definida.
-
-La pestanya de clients és actualment un formulari de declaració local; no fa cerques
-ni mostra coincidències.
-
-## Pestanya «Match»: demostració local
-
-La pestanya Match inclou dades fictícies per provar el seguiment sense API. Només
-mostra objectes amb almenys un match confirmat i, per cada coincidència, mostra la
-declaració i les dades de contacte fictícies del sol·licitant. La relació és de
-molts a molts: un objecte trobat pot vincular-se amb diverses declaracions i una
-declaració pot vincular-se amb diversos objectes trobats. Permet afegir o treure
-coincidències individuals, editar el lloc on s’ha trobat i la destinació
-d’enviament, comptar els dies des de l’entrada al servidor i marcar un objecte com
-a retornat. Les dades es desen només al navegador sota la clau
-`tmb-lost-found-match-demo`; no es llegeixen les declaracions reals ni l’historial
-dels operaris, no s’envien al servidor i no s’han d’introduir-hi dades personals.
-Per això, aquesta demostració no és un seguiment compartit entre dispositius.
-
-## Evolució prevista: cerca i coincidències
-
-En una fase posterior, la declaració del client s’hauria d’enviar al backend perquè
-es pugui connectar amb els components de cerca del projecte i mostrar possibles
-coincidències. Cal acordar amb els equips de backend i cerca el contracte de dades,
-la manera de presentar resultats i com es gestionaran les fotografies aportades.
-
-La sol·licitud s’hauria d’enviar al backend perquè es pugui connectar amb els
-components de cerca del projecte i mostrar possibles coincidències. Aquesta àrea de
-clients encara no està implementada: cal acordar amb els equips de backend i cerca
-el contracte de dades, la manera de presentar els resultats i com es gestionaran
-les fotografies aportades.
-
-## Tecnologies i execució
-
-El client actual utilitza HTML, CSS i JavaScript sense dependències externes. La
-separació en fitxers manté la interfície independent de les integracions:
-
-- `index.html`: pantalles i formularis del flux actual.
-- `app.js`: lògica d’interfície i adaptadors per a NFC, cua local i API.
-- `styles.css`: estils responsive i colors de la interfície.
-- `manifest.webmanifest`: configuració per instal·lar el client com a PWA.
-
-Per executar-lo localment, des de `client/`:
-
-```bash
-python3 -m http.server 4173
-```
-
-Obre `http://localhost:4173`. En un mòbil, la càmera i Web NFC requereixen una
-connexió HTTPS, excepte quan s’executa a `localhost`. El vehicle manual permet provar
-el flux sense un tag NFC.
-
-## Integracions pendents
-
-- Configurar l’URL i el contracte definitius de l’API amb l’equip de backend. No es
-	fan peticions mentre no hi hagi una API configurada; Match continua sent una
-	demostració local fictícia fins que s’acordin persistència, autenticació i privacitat.
-- Acordar el format dels tags NFC. La lectura actual accepta provisionalment text
-	JSON (`{"line":"H12","vehicle":"3421"}`) o el número de sèrie del tag.
-- Definir el contracte de cerca i la presentació de coincidències amb l’equip de
-	cerca abans d’implementar el flux per a reclamants.
-- La revisió de les fotografies és manual. La detecció automàtica de fotos fosques o
-	borroses encara no està implementada.
-- La cua offline desa les imatges al navegador; per a ús real cal valorar una
-	persistència més adequada per a fitxers grans i la sincronització en segon pla.
+La cua offline d’operaris conserva peticions pendents quan hi ha espai al navegador.
+L’historial local només desa resums, sense duplicar els bytes de les fotografies.
+L’inventari del servidor permet comprovar els registres des de qualsevol navegador
+d’aquest equip.

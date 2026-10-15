@@ -1,0 +1,17 @@
+{
+  "categories": {
+    "Mòbil": ["phone", "mobile phone", "cell phone", "smartphone", "telephone"],
+    "Cartera": ["wallet", "cardholder", "card holder", "coin purse"],
+    "Motxilla": ["backpack", "rucksack", "schoolbag", "school bag", "drawstring backpack"],
+    "Bossa": ["bag", "handbag", "shoulder bag", "tote bag", "duffel bag", "purse"],
+    "Peça de roba": ["clothing", "shirt", "t shirt", "jacket", "coat", "scarf", "hat", "cap", "glove", "gloves", "sweater", "trousers", "shoe", "shoes"],
+    "Claus": ["key", "keys", "keychain", "keyring"],
+    "Documentació": ["document", "documents", "passport", "identity card", "id card"],
+    "Ulleres": ["glasses", "eyeglasses", "sunglasses", "spectacles"],
+    "Auriculars": ["headphones", "earphones", "earbuds", "headset"],
+    "Ampolla": ["bottle", "water bottle", "flask", "thermos", "vacuum flask"],
+    "Paraigua": ["umbrella", "parasol"]
+  },
+  "colors": {"black":"Negre", "blue":"Blau", "brown":"Marró", "beige":"Marró", "gray":"Gris", "silver":"Gris", "green":"Verd", "red":"Vermell", "white":"Blanc", "yellow":"Groc", "gold":"Groc", "orange":"Taronja", "pink":"Rosa", "purple":"Lila", "transparent":"Transparent"},
+  "materials": {"textile":"Tèxtil", "leather":"Pell", "plastic":"Plàstic", "metal":"Metall", "glass":"Vidre", "mixed":"Mixt", "other":"Altres"}
+}

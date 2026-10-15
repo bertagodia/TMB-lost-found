@@ -1,0 +1,41 @@
+{
+  "colors": [
+    "Negre",
+    "Blau",
+    "Marró",
+    "Gris",
+    "Verd",
+    "Vermell",
+    "Blanc",
+    "Groc",
+    "Taronja",
+    "Rosa",
+    "Lila",
+    "Transparent",
+    "Multicolor"
+  ],
+  "objectTypes": [
+    "Mòbil",
+    "Cartera",
+    "Motxilla",
+    "Bossa",
+    "Peça de roba",
+    "Claus",
+    "Documentació",
+    "Ulleres",
+    "Auriculars",
+    "Ampolla",
+    "Paraigua",
+    "Altres"
+  ],
+  "materials": [
+    "Tèxtil",
+    "Pell",
+    "Plàstic",
+    "Metall",
+    "Vidre",
+    "Electrònic",
+    "Mixt",
+    "Altres"
+  ]
+}
