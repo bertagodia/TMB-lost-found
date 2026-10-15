@@ -377,7 +377,9 @@ class PostgresApplication(Application):
                         conn.execute("UPDATE tmb.object_routing SET returned_at=CASE WHEN %s THEN clock_timestamp() ELSE NULL END,revision=revision+1 WHERE object_id=%s",(action=='return',object_id))
                         conn.execute('UPDATE tmb.found_objects SET status=%s WHERE id=%s',('returned' if action=='return' else 'registered',object_id))
             objects = conn.execute("""SELECT o.*,r.object_type,r.description,
-                t.origin_location,t.assigned_destination,t.found_location AS routing_location,t.destination,t.sent_at,t.returned_at,
+                t.origin_location AS routing_origin_location,
+                t.assigned_destination AS routing_assigned_destination,
+                t.found_location AS routing_location,t.destination,t.sent_at,t.returned_at,
                 coalesce(t.revision,1) AS routing_revision,
                 ARRAY(SELECT m.report_id FROM tmb.object_matches m WHERE m.object_id=o.id ORDER BY m.created_at,m.report_id) AS matches
                 FROM tmb.found_objects o
@@ -390,7 +392,9 @@ class PostgresApplication(Application):
         return dict(records=[dict(id=o['id'],object=o['description'] or o['object_type'] or o['id'],type=o['object_type'],
             foundAt=iso(o['found_date']),receivedAt=iso(o['received_at'] or o['created_at']),
             foundLocation=o['routing_location'] or o['found_location'] or o['found_line'] or o['registered_line'] or '',
-            assignedDestination=o['assigned_destination'],originLocation=o['origin_location'],
+            assignedDestination=o['routing_assigned_destination'] or o['origin_destination'],
+            originKind=o['origin_kind'],
+            originLocation=o['routing_origin_location'] or o['origin_location'],
             destination=o['destination'] or '',sentAt=iso(o['sent_at']),
             returnedAt=iso(o['returned_at'] or o['updated_at']) if o['status']=='returned' else None,
             status=o['status'],revision=o['routing_revision'],matchedReportIds=o['matches']) for o in objects],

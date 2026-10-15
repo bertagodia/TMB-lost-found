@@ -108,6 +108,9 @@ function render(store) {
       fact('Trobat el', formatDate(record.foundAt)),
       fact('Entrat al servidor', formatDate(receivedAt)),
       dayCount,
+      fact('Origen del registre', record.originLocation
+        ? `${record.originKind === 'depot' ? 'Cotxera' : record.originKind === 'station' ? 'Estació' : 'Origen'} · ${record.originLocation}`
+        : 'No indicat'),
       fact('On s’ha trobat', record.foundLocation),
       fact('Central assignada (pendent d’enviament)',record.assignedDestination),
       fact('On s’envia', record.destination || 'Encara no s’ha enviat'),

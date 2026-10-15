@@ -60,6 +60,8 @@ class PostgresTests(unittest.TestCase):
         self.app.lost_report(dict(id='report2',description='Orange bottle',contact={}))
         data=self.app.matches({})
         item=data['records'][0]
+        self.assertEqual(item['originKind'],'station')
+        self.assertEqual(item['originLocation'],location)
         self.assertEqual(item['assignedDestination'],ORIGINS['station'][location])
         self.assertFalse(item['destination'])
         self.assertIsNone(item['sentAt'])
